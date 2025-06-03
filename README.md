@@ -37,9 +37,8 @@ The system is architected around a suite of interacting agents:
 -   **Modular Design:** Clear separation of responsibilities between agents and utility modules.
 
 ## Directory Structure
-Use code with caution.
-Markdown
-augmentic_mindx/
+```txt
+mindx/
 ├── mindx/ # Main MindX Python package
 │ ├── core/ # Core concepts like BeliefSystem
 │ ├── orchestration/ # CoordinatorAgent, (stubs for MMA, ModelSelector)
@@ -66,6 +65,7 @@ augmentic_mindx/
 ├── mindx_config.json # Optional JSON configuration file (example)
 ├── pyproject.toml # Project metadata and dependencies
 └── README.md # This file
+```
 ## Getting Started
 
 ### Prerequisites
