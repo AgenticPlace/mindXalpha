@@ -1,0 +1,201 @@
+[project]
+name = "augmentic_mindx"
+version = "0.4.0" # Version bump for this more complete candidate
+description = "MindX: An experimental, hierarchically controlled AI system with autonomous self-improvement capabilities, by Augmentic."
+authors = [
+    { name = "Augmentic Project Developers", email = "dev@augmentic.example" },
+]
+license = { text = "Apache License 2.0" } # Example: Changed to a common permissive license
+readme = "README.md"
+requires-python = ">=3.9" # asyncio.to_thread, Path methods, type hints benefit from 3.9+
+classifiers = [
+    "Development Status :: 4 - Beta", # Closer to Beta with this level of detail
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Operating System :: OS Independent",
+]
+keywords = ["ai", "bdi", "self-improvement", "autonomous agents", "llm", "cognitive architecture", "strategic evolution", "mindx", "augmentic"]
+
+dependencies = [
+    # Core system utilities
+    "psutil>=5.9.0",           # For ResourceMonitor (CPU, memory, disk usage)
+    "python-dotenv>=1.0.0",    # For Config to load .env files
+    "PyYAML>=6.0.1",           # For MultiModelAgent capability file loading (and potentially other configs)
+    
+    # LLM SDKs - Essential for actual LLM interaction.
+    # Users should install the ones they intend to use.
+    # These are examples; the LLMFactory will try to import them.
+    "ollama>=0.1.9",           # For OllamaHandler (if using Ollama's Python library)
+    "google-generativeai>=0.5.2", # For GeminiHandler
+    # "openai>=1.10.0",        # Example for OpenAI
+    # "anthropic>=0.21.3",     # Example for Anthropic
+    
+    # Optional but highly recommended for robust LLM abstraction if using many providers:
+    # "litellm>=1.34.0",
+
+    # For CLI user experience (optional but nice)
+    "readline; sys_platform != 'win32'", # For input history/editing on non-Windows
+]
+
+[project.urls]
+Homepage = "https://github.com/augmentic/mindx" # Replace with actual URL
+Repository = "https://github.com/augmentic/mindx"
+# Issues = "https://github.com/augmentic/mindx/issues"
+# Documentation = "https://augmentic.github.io/mindx"
+
+# CLI entry points (if desired for installed package)
+# These require the `main()` functions in the scripts to be callable without `asyncio.run()`
+# or for a synchronous wrapper to be created.
+# Example:
+# [project.scripts]
+# mindx-coordinator = "scripts.run_mindx_coordinator:main_sync_wrapper_if_needed"
+# mindx-sia = "mindx.learning.self_improve_agent:main_cli_sync_wrapper_if_needed"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "ruff>=0.3.2",            # Linter and formatter
+    "mypy>=1.8.0",
+    "coverage[toml]>=7.4.0",  # [toml] extra for pyproject.toml coverage config
+    "pre-commit>=3.6.0",
+    "nest_asyncio>=1.6.0",    # For some async testing/notebook scenarios
+    "types-psutil",           # Type hints for psutil
+    "types-PyYAML",           # Type hints for PyYAML
+]
+tools_websearch = [ # Example if WebSearchTool had specific dependencies
+    # "beautifulsoup4>=4.12.0",
+    # "requests>=2.31.0",
+    # "duckduckgo_search>=4.0.0" 
+]
+# Add other optional tool dependencies here, e.g., [tools.database], [tools.file_system]
+
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+backend-path = ["."] # Ensure setuptools can find its backend in editable installs
+
+[tool.setuptools]
+# include-package-data = true # If you have non-code files inside your package
+zip-safe = false # Often safer for packages with complex imports or data files
+
+[tool.setuptools.packages.find]
+where = ["."]  # Search for packages in the current directory (location of pyproject.toml)
+include = ["mindx*"]  # Include the 'mindx' package and its subpackages
+exclude = ["tests*", "docs_build*", "data_runtime*", "scripts.archive*"] 
+# Exclude top-level test/doc/data dirs from being installed as packages.
+# 'data_runtime' if you create a dir for runtime data separate from source 'data'.
+# 'scripts.archive' if you have an archive of old scripts.
+
+# If you have data files *within* your 'mindx' package that need to be included:
+# [tool.setuptools.package-data]
+# mindx = ["*.json", "learning/prompts/*.txt", "some_module/data_files/*"]
+
+
+# --- Ruff Linter & Formatter Configuration ---
+[tool.ruff]
+line-length = 119
+target-version = "py39" # Lint for Python 3.9 compatibility
+# extend-exclude = ["mindx/llm/generated_clients/*"] # Example: Exclude generated code
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors (PEP8)
+    "W",   # pycodestyle warnings (PEP8)
+    "F",   # Pyflakes (logical errors)
+    "I",   # isort (import sorting)
+    "UP",  # pyupgrade (upgrade syntax to newer Python versions)
+    "C90", # McCabe complexity
+    "B",   # flake8-bugbear (potential bugs and design problems)
+    "SIM", # flake_simplify (refactoring suggestions)
+    "PTH", # flake8-use-pathlib (use pathlib instead of os.path)
+    "ASYNC", # ruff-specific asyncio lints
+    "TID", # flake8-tidy-imports
+    "ANN", # flake8-annotations (enforce type hints to some extent)
+]
+ignore = [
+    "E501",  # Line too long (primarily handled by formatter)
+    "B008",  # Function calls in argument defaults (sometimes acceptable for singletons/factories)
+    "ANN101",# Missing type hint for self (common in stubs or simple methods)
+    "ANN102",# Missing type hint for cls (common in classmethods)
+    "ANN201",# Missing return type from public function (gradually enable)
+    "ANN002",# Missing type annotation for *args
+    "ANN003",# Missing type annotation for **kwargs
+    # "F841",  # Unused local variable (can be useful during dev)
+]
+# Fixable errors will be automatically fixed by `ruff --fix .`
+fixable = ["ALL"]
+unfixable = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["mindx"] # Helps isort group your project's imports
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-string-normalization = false # True can be useful for preserving f-string quote styles
+line-ending = "auto" # Or "lf", "crlf"
+
+# --- MyPy Static Type Checker Configuration ---
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false # Start with false, gradually enable for stricter typing
+disallow_incomplete_defs = false # Start with false
+ignore_missing_imports = true # Crucial when starting or with libs lacking stubs
+# strict = true # For very strict type checking (enable later)
+# exclude = ['mindx/llm/generated_clients/'] # Example
+
+# For more granular control:
+# [[tool.mypy.overrides]]
+# module = "psutil" # Example: if psutil stubs are problematic
+# ignore_missing_imports = true
+
+# --- Pytest Configuration ---
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-ra -q --cov=mindx --cov-report=term-missing --cov-report=html" # Show short test summary, run coverage
+testpaths = ["tests"] # Directory where tests are located
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+asyncio_mode = "auto" # For pytest-asyncio
+
+# --- Coverage.py Configuration ---
+[tool.coverage.run]
+source = ["mindx"] # Measure coverage for the mindx package
+branch = true
+omit = [
+    "mindx/*/__init__.py", # Typically empty
+    "mindx/*/__main__.py", # If you have main entry points in packages
+    "mindx/*/_version.py", # Version files
+    "*/tests/*",         # Don't measure coverage of tests themselves
+    "scripts/*", # Scripts are often harder to unit test directly for coverage
+    "**/zz_stubs/*",      # If you have a directory for pure stubs
+    "*/*_pb2.py",        # Exclude generated protobuf files
+    "**/migrations/*",   # Exclude database migrations
+]
+
+[tool.coverage.report]
+fail_under = 70 # Example: Fail build if coverage is below 70%
+show_missing = true
+skip_covered = true
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if logger.isEnabledFor(logging.DEBUG):",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:", # For CLI entry points in modules
+    "class .*\(Protocol\):", # Exclude Protocol definitions
+    "@overload",
+]
