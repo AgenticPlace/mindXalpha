@@ -1,8 +1,8 @@
-# Augmentic MindX: A Self-Improving AI System
+# Augmentic mindX: A Self-Improving AI System
 
 ## Overview
 
-**MindX** is an experimental AI system developed under the conceptual "Augmentic Project." Its core design principle is **autonomous self-improvement**. MindX aims to analyze its own codebase, identify areas for enhancement, and apply these improvements, thereby evolving its capabilities over time. This project draws inspiration from concepts like the Darwin Gödel Machine, focusing on empirical validation of changes and maintaining a history of its evolution.
+**mindX** is an experimental AI system developed for the "Augmentic Project." mindX core design principle is **autonomous self-improvement**. mindX aims to analyze its own codebase, identify areas for enhancement, and apply these improvements, thereby evolving its capabilities over time. This project draws inspiration from concepts like the Darwin Gödel Machine, focusing on empirical validation of changes and maintaining a history of its evolution.
 
 The system is architected around a suite of interacting agents:
 
