@@ -1,0 +1,26 @@
+# Core Runtime Dependencies for MindX
+psutil>=5.9.0               # For ResourceMonitor (CPU, memory, disk usage)
+python-dotenv>=1.0.0        # For Config to load .env files
+PyYAML>=6.0.0               # For MultiModelAgent to load model capabilities from YAML (if implemented)
+
+# LLM SDKs - Install based on which providers you intend to use
+# These are needed if the LLMHandlers use the official SDKs.
+# The current LLMFactory stubs can run without these if you only use the mock,
+# but for real LLM interaction, you'll need them.
+ollama>=0.1.8               # For OllamaHandler (if using Ollama's Python library)
+google-generativeai>=0.5.0  # For GeminiHandler
+
+# To be added if/when other specific LLM provider handlers are implemented:
+# openai>=1.3.0
+# anthropic>=0.20.0
+# litellm>=1.30.0           # Good for abstracting multiple LLM APIs if you go that route
+
+# Development and Testing Dependencies (Optional but Recommended)
+# These would typically be in a requirements-dev.txt or [project.optional-dependencies] in pyproject.toml
+# pytest>=7.0.0             # For running unit and integration tests
+# pytest-asyncio>=0.21.0    # For testing asyncio code with pytest
+# ruff>=0.3.0               # High-performance linter and formatter
+# mypy>=1.8.0               # Static type checker
+# nest_asyncio>=1.5.0       # For running asyncio in some environments like Jupyter or complex sync/async factories
+# coverage>=7.0.0           # For test coverage reporting
+# pre-commit>=3.0.0         # For Git pre-commit hooks to maintain code quality
