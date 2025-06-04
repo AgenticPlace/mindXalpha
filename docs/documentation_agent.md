@@ -217,3 +217,79 @@ def get_documentation_agent(config_override: Optional[Config] = None, test_mode:
             DocumentationAgent._instance = None
         DocumentationAgent._instance = DocumentationAgent(config_override=config_override, test_mode=test_mode)
     return DocumentationAgent._instance
+
+
+    ###############################################################
+
+
+    # Documentation Agent (`documentation_agent.py`) - Functional Stub
+
+## Introduction
+
+The `DocumentationAgent` is a component within the MindX system (Augmentic Project) conceptually responsible for generating, managing, and providing access to the project's documentation. In a full implementation, it would leverage a documentation generation tool like Sphinx, along with source code analysis (e.g., `sphinx.ext.autodoc`) and potentially Markdown/MyST processing.
+
+**This current version is a functional stub.** It outlines the expected interface and simulates the core operations (like building docs, searching) without actually performing complex Sphinx builds or parsing.
+
+## Explanation
+
+### Core Responsibilities (Conceptual)
+
+-   **Documentation Generation:** Build HTML (or other formats) documentation from Python docstrings, reStructuredText files, and Markdown files within the MindX codebase.
+-   **Configuration Management:** Manage Sphinx build configurations (`conf.py`).
+-   **API Documentation:** Extract and format documentation for APIs (e.g., FastAPI endpoints if MindX exposes any).
+-   **Content Management:** Allow adding or updating Markdown-based documentation pages.
+-   **Search:** Provide a way to search through the generated documentation.
+-   **Status Reporting:** Offer insights into the current build status and history.
+
+### Stub Implementation Details
+
+-   **Initialization (`__init__`):**
+    *   Sets up conceptual source, output, and Sphinx configuration directories based on paths from the global `Config` object (relative to `PROJECT_ROOT`).
+    *   Maintains a mock `sphinx_config_settings` dictionary.
+    *   Initializes status and build history attributes.
+-   **`build_documentation(force_rebuild)`:**
+    *   Simulates the Sphinx build process with an `asyncio.sleep`.
+    *   Mock outcome (success/failure).
+    *   If "successful", it creates a dummy `index.html` in the conceptual output directory.
+    *   Logs the build attempt to `self.build_history`.
+-   **`get_documentation_status()`:** Returns a dictionary with the current (mock) status, last build time, and output directory.
+-   **`get_documentation_structure()`:** Returns a predefined, mock dictionary representing a simplified documentation structure (main pages, modules).
+-   **`search_documentation(query, max_results)`:** Simulates a search and returns a list of mock search result dictionaries.
+-   **`update_sphinx_config(new_settings)`:** Updates the internal `self.sphinx_config_settings` dictionary. A real implementation would modify `conf.py`.
+-   **(Placeholder) Sphinx Initialization & RST Generation:** The original stub included detailed methods (`initialize_sphinx`, `generate_module_rst_files`, `generate_api_documentation`) for setting up a Sphinx project and auto-generating RST files. For this functional stub, these are not actively called by the simplified `build_documentation` to avoid needing a full Sphinx environment for the stub to run. They represent the logic a full agent would have.
+
+## Technical Details
+
+-   **Asynchronous:** Core methods like `build_documentation` are `async` to fit the MindX async framework.
+-   **Configuration:** Relies on `mindx.utils.config.Config` for paths (e.g., `docs.agent.output_dir_relative_to_project`).
+-   **Singleton Pattern:** Provides `get_documentation_agent_async()` and `get_documentation_agent()` for accessing a single instance.
+-   **No External Dependencies (for stub operation):** This stub version does not strictly require Sphinx or other documentation tools to be installed to *run* (as it mocks the build). A full implementation would have these as dependencies.
+
+## Usage
+
+The `DocumentationAgent` would typically be invoked by the `CoordinatorAgent` or other system management components.
+
+```python
+# Conceptual Usage (e.g., within CoordinatorAgent)
+
+# async def manage_docs(coordinator):
+#     doc_agent = await get_documentation_agent_async() # Get instance
+
+#     # Trigger a documentation build
+#     build_result = await doc_agent.build_documentation(force_rebuild=True)
+#     if build_result.get("status") == "SUCCESS":
+#         print(f"Documentation built successfully at: {build_result.get('output_path')}")
+#         await coordinator.belief_system.add_belief("docs.last_build.status", "success", 0.9, BeliefSource.SELF_ANALYSIS)
+#     else:
+#         print(f"Documentation build failed: {build_result.get('message')}")
+#         await coordinator.belief_system.add_belief("docs.last_build.status", "failure", 0.9, BeliefSource.SELF_ANALYSIS)
+
+#     # Get documentation status
+#     status_info = await doc_agent.get_documentation_status()
+#     print(f"Current Docs Status: {status_info.get('status')}, Last Build: {status_info.get('last_build_time')}")
+
+#     # Search documentation
+#     search_results = await doc_agent.search_documentation("SelfImprovementAgent CLI")
+#     print("\nSearch Results:")
+#     for res in search_results:
+#         print(f"- {res['title']} ({res['path']})")
