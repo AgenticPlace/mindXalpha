@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The `BDIAgent` (Belief-Desire-Intention) within the MindX system (Augmentic Project) is designed for goal-directed autonomous behavior. This version (v3) significantly enhances its "intelligence" by deeply integrating Large Language Models (LLMs) for core BDI cognitive functions: **plan generation**, **subgoal decomposition**, rudimentary **failure analysis**, and conceptual **plan monitoring**. It operates using a shared `BeliefSystem` for robust knowledge management and interacts with configured tools. This version also introduces more dynamic parameter resolution for actions based on beliefs or prior action results.
+The `BDIAgent` (Belief-Desire-Intention) within the mindX system (Augmentic Project) is designed for goal-directed autonomous behavior. This version (v3) significantly enhances mindX "intelligence" by deeply integrating Large Language Models (LLMs) for core BDI cognitive functions: **plan generation**, **subgoal decomposition**, rudimentary **failure analysis**, and conceptual **plan monitoring**. It operates using a shared `BeliefSystem` for robust knowledge management and interacts with configured tools. This version also introduces more dynamic parameter resolution for actions based on beliefs or prior action results.
 
 ## Explanation
 
