@@ -1,189 +1,194 @@
-# Augmentic mindX: A Self-Improving AI System
+# Augmentic mindX: An Experimental Self-Improving AI System
+
+**Version:** 0.3.0 (Production Candidate - Core Loop)
 
 ## Overview
 
-**mindX** is an experimental AI system developed for the "Augmentic Project." mindX core design principle is **autonomous self-improvement**. mindX aims to analyze its own codebase, identify areas for enhancement, and apply these improvements, thereby evolving its capabilities over time. This project draws inspiration from concepts like the Darwin Gödel Machine, focusing on empirical validation of changes and maintaining a history of its evolution.
+**MindX** is an experimental AI system developed under the conceptual "Augmentic Project." Its central design philosophy is **autonomous self-improvement**. MindX aims to analyze its own Python codebase, identify areas for enhancement, generate solutions using Large Language Models (LLMs), and apply these improvements safely, thereby evolving its capabilities over time. This project draws inspiration from concepts like the Darwin Gödel Machine, emphasizing empirical validation of changes and maintaining a history of its evolution.
 
-The system is architected around a suite of interacting agents:
+The system is architected around a suite of interacting Python agents and modules:
 
--   **`CoordinatorAgent`**: The central orchestrator. It manages high-level tasks, performs system-wide analysis by integrating data from various sources (code structure, resource monitors, performance monitors), maintains an "improvement backlog," and delegates code modification tasks. It can operate an autonomous improvement loop with optional human-in-the-loop (HITL) for critical changes.
--   **`SelfImprovementAgent` (SIA)**: The specialized "code surgeon." Invoked via CLI by the Coordinator, the SIA takes a specific Python file and an improvement goal. It uses an LLM to generate code modifications, evaluates these changes (including running self-tests if modifying its own code), and employs safety mechanisms like iteration directories and fallbacks before promoting changes, especially for its own source code.
--   **Monitoring Agents (`ResourceMonitor`, `PerformanceMonitor`):** These agents track system health (CPU, memory, disk) and LLM interaction performance (latency, success rates, costs), providing crucial data that informs the Coordinator's analysis and decision-making.
--   **Utility Modules:** Supporting components for configuration management (`Config`), logging (`Logging`), LLM interaction (`LLMFactory`), and knowledge representation (`BeliefSystem`).
+-   **`CoordinatorAgent`**: The primary orchestrator. It manages high-level system operations, performs system-wide analysis (integrating data from code structure, resource monitors, and LLM performance monitors), maintains an "improvement backlog" of potential enhancements, and delegates tactical code modification tasks. It features an autonomous improvement loop with optional Human-in-the-Loop (HITL) for changes to critical components.
+-   **`SelfImprovementAgent` (SIA)**: The specialized "code surgeon." It is invoked via its Command Line Interface (CLI) by the `CoordinatorAgent`. Given a specific Python file and an improvement goal, the SIA uses an LLM to generate code modifications. Crucially, it evaluates these changes in isolated iteration directories (including running self-tests if modifying its own code) and employs safety mechanisms like backups and fallbacks before promoting successful changes, particularly for its own source code.
+-   **Monitoring Agents (`ResourceMonitor`, `PerformanceMonitor`):** These agents continuously track system health (CPU, memory, disk usage across multiple configurable paths) and LLM interaction performance (latency, success rates, token counts, costs, error types per model/task). This data is vital for informing the `CoordinatorAgent`'s analysis and strategic decision-making.
+-   **Strategic Evolution Agent (`StrategicEvolutionAgent` - formerly `AGISelfImprovementAgent`):** A higher-level agent that can be tasked with managing broader self-improvement *campaigns*. It uses its own internal `BDIAgent` and a `SystemAnalyzerTool` to strategize, identify opportunities, and then makes specific component improvement requests to the `CoordinatorAgent` for tactical execution by the SIA.
+-   **BDI Agent (`BDIAgent` - Core Stub):** A functional stub implementing the Belief-Desire-Intention architecture. The `StrategicEvolutionAgent` uses an instance of this for its internal campaign planning and execution. This BDI stub itself uses an LLM for planning and conceptual subgoal decomposition.
+-   **Utility Modules:** A suite of supporting components for robust configuration management (`Config`), standardized logging (`Logging`), a factory for LLM interaction handlers (`LLMFactory`), and a shared knowledge base (`BeliefSystem`).
 
-## Project Goals
+## Project Vision & Goals
 
--   To explore and implement mechanisms for AI self-improvement.
--   To create a system that can autonomously identify and apply beneficial modifications to its own source code.
--   To build a robust framework where self-improvement cycles are managed safely, with verification steps and fallback options.
--   To leverage Large Language Models (LLMs) for code analysis, generation, and critique within the self-improvement loop.
--   To provide a platform for experimenting with different strategies for autonomous AI development and evolution.
+-   **Explore AI Self-Improvement:** To research, implement, and demonstrate mechanisms that enable an AI system to autonomously enhance its own functionality and performance.
+-   **Autonomous Code Evolution:** To create a system capable of identifying areas for code improvement, generating solutions (via LLMs), and safely applying these modifications to its Python codebase.
+-   **Safe & Verifiable Changes:** To build a framework where self-improvement cycles are managed with safety as a priority, incorporating verification steps (like syntax checks and automated self-tests) and fallback options.
+-   **LLM-Driven Cognitive Cycle:** To leverage Large Language Models for various cognitive tasks within the self-improvement loop, including code analysis, solution generation, and critique of proposed changes.
+-   **Evolving Platform:** To provide an extensible platform for experimenting with different strategies for autonomous AI development, learning, and strategic evolution.
 
 ## Core Features
 
--   **Autonomous System Analysis:** The `CoordinatorAgent` can analyze the MindX codebase structure, current resource usage, and LLM performance to identify potential areas for improvement.
--   **Improvement Backlog:** Suggestions from system analysis are prioritized and managed in a persistent backlog.
--   **Autonomous Improvement Loop:** The `CoordinatorAgent` can periodically process the backlog, select high-priority improvements, and dispatch them.
--   **Human-in-the-Loop (HITL):** For changes to critical system components (like the Coordinator or SIA itself), the autonomous loop can be configured to require human approval before proceeding.
--   **Safe Code Modification (via `SelfImprovementAgent`):**
-    -   **CLI Interface:** The SIA is invoked as a command-line tool, ensuring decoupling from the Coordinator.
-    -   **Iteration Directories:** Self-modifications are performed and tested in isolated temporary directories.
-    -   **Self-Tests:** Modified SIA code must pass a predefined suite of self-tests before being considered for promotion.
-    -   **LLM-Critique:** LLMs are used to evaluate if the generated code meets the improvement goal.
-    -   **Backup & Fallback:** Before promoting an update to its own script, the SIA creates a backup of the current version.
-    -   **Robust JSON Output:** The SIA CLI provides structured JSON output detailing the outcome of its operations.
--   **Resource & Performance Monitoring:** Continuous tracking of system resources and LLM API performance provides data for informed decision-making.
--   **Configurable:** System behavior, LLM choices, thresholds, and feature toggles are managed via a central `Config` system that loads from `.env` files, a JSON config file, and environment variables.
--   **Modular Design:** Clear separation of responsibilities between agents and utility modules.
+-   **Hierarchical Improvement Process:**
+    -   **Strategic Layer (`StrategicEvolutionAgent`):** Manages long-term improvement campaigns, identifies broad areas using `SystemAnalyzerTool`, and uses an internal `BDIAgent` to plan campaign steps.
+    -   **Orchestration Layer (`CoordinatorAgent`):** Receives strategic directives or direct user requests. Performs system-wide analysis, manages an `improvement_backlog`, handles HITL for critical changes, and delegates tactical code modifications.
+    -   **Tactical Layer (`SelfImprovementAgent`):** Executes specific file modification tasks via its robust CLI, ensuring safety and verification.
+-   **Data-Informed System Analysis:** The `CoordinatorAgent` integrates data from codebase scans, resource monitors, and LLM performance monitors to make informed suggestions for improvements.
+-   **Autonomous Improvement Loop (Coordinator):** Periodically analyzes the system, adds suggestions to a persistent backlog, and (if configured) attempts to implement high-priority items, respecting HITL.
+-   **Human-in-the-Loop (HITL):** Changes to designated critical system components (e.g., SIA, Coordinator) can be configured to require manual approval via CLI before autonomous application.
+-   **Safe & Verified Code Modification (via `SelfImprovementAgent`):**
+    -   **CLI Interface:** Decoupled execution via a standardized command-line interface.
+    -   **Iteration Directories:** Self-modifications are developed and tested in isolated temporary directories.
+    -   **Automated Self-Tests:** When modifying its own code, the SIA runs a suite of self-tests on the changed version before it can be promoted.
+    -   **LLM-Critique:** An LLM evaluates the quality and goal-adherence of generated code changes.
+    -   **Backup & Fallback:** The SIA automatically backs up its current script before promoting a self-update, allowing for reversion.
+    -   **Structured JSON Output:** The SIA CLI provides detailed, machine-parsable JSON reports of its operations.
+-   **Comprehensive Monitoring:**
+    -   `ResourceMonitor`: Tracks CPU, memory, and multi-path disk usage with configurable alert thresholds and callbacks.
+    -   `PerformanceMonitor`: Logs detailed metrics for LLM calls (latency, tokens, cost, success/failure rates, error types) per model and optionally per task type/initiating agent. Metrics are persisted.
+-   **Centralized Configuration (`Config`):** Robustly loads settings from code defaults, a JSON file (`mindx_config.json`), `.env` files, and `MINDX_` prefixed environment variables, with clear precedence. `PROJECT_ROOT` is centrally defined.
+-   **Shared Belief System (`BeliefSystem`):** A persistent, namespaced knowledge base for agents to share and record information, observations, and statuses.
+-   **Modular & Asynchronous Design:** Built with Python's `asyncio` for concurrent operations and a modular structure for better maintainability and extensibility.
 
-## Directory Structure
+## Project File Structure
 ```txt
-mindx/
-├── mindx/ # Main MindX Python package
-│ ├── core/ # Core concepts like BeliefSystem
-│ ├── orchestration/ # CoordinatorAgent, (stubs for MMA, ModelSelector)
-│ ├── learning/ # SelfImprovementAgent
-│ ├── monitoring/ # ResourceMonitor, PerformanceMonitor
-│ ├── llm/ # LLMFactory, LLMHandler
-│ ├── utils/ # Config, Logging
-│ └── docs/ # (Placeholder for documentation system)
-├── scripts/ # CLI entry points
-│ └── run_mindx_coordinator.py
-├── data/ # Persistent data generated by MindX
-│ ├── config/ # (Optional location for mindx_config.json)
-│ ├── logs/ # Application logs
-│ ├── self_improvement_work_sia/ # Data for SelfImprovementAgent
-│ │ └── self_improve_agent/ # Subdir per SIA script name
-│ │ ├── archive/ # SIA's detailed improvement history
-│ │ └── fallback_versions/ # Backups of SIA script
-│ ├── temp_sia_contexts/ # Temp files for Coordinator to SIA context
-│ ├── improvement_backlog.json # Coordinator's backlog
-│ ├── improvement_campaign_history.json # Coordinator's campaign log
-│ └── performance_metrics.json # Data from PerformanceMonitor
-├── tests/ # Unit and integration tests (placeholder)
-├── .env # Environment variables (API keys, etc.)
-├── mindx_config.json # Optional JSON configuration file (example)
-├── pyproject.toml # Project metadata and dependencies
+augmentic_mindx/
+├── mindx/ # Main MindX Python package (installable)
+│ ├── core/ # Core agent concepts
+│ │ ├── init.py
+│ │ └── belief_system.py # Shared knowledge base
+│ │ └── bdi_agent.py # BDI agent framework (used by SEA)
+│ ├── orchestration/ # System-level coordination
+│ │ ├── init.py
+│ │ ├── coordinator_agent.py # Main orchestrator
+│ │ ├── multimodel_agent.py # STUB: For managing multiple LLM tasks
+│ │ └── model_selector.py # STUB: For selecting LLMs
+│ ├── learning/ # Self-improvement and evolution logic
+│ │ ├── init.py
+│ │ ├── self_improve_agent.py # Tactical code modification worker (CLI)
+│ │ ├── strategic_evolution_agent.py # Strategic improvement campaign manager
+│ │ ├── goal_management.py # Goal manager for SEA/BDI
+│ │ └── plan_management.py # Plan manager for SEA/BDI
+│ ├── monitoring/ # System and performance monitoring
+│ │ ├── init.py
+│ │ ├── resource_monitor.py # Monitors CPU, memory, disk
+│ │ └── performance_monitor.py# Monitors LLM call performance
+│ ├── llm/ # LLM interaction layer
+│ │ ├── init.py
+│ │ ├── llm_interface.py # Abstract interface for LLM handlers
+│ │ ├── llm_factory.py # Creates specific LLM handlers
+│ │ └── model_registry.py # Manages available LLM handlers
+│ ├── utils/ # Common utilities
+│ │ ├── init.py
+│ │ ├── logging_config.py # Centralized logging setup
+│ │ └── config.py # Configuration management (defines PROJECT_ROOT)
+│ ├── docs/ # STUB PACKAGE: For documentation system
+│ │ ├── init.py
+│ │ └── documentation_agent.py # STUB: Agent for managing documentation
+│ └── init.py # Makes 'mindx' a package
+├── scripts/ # Executable scripts
+│ └── run_mindx_coordinator.py # Main CLI entry point for MindX system
+├── data/ # Data generated and used by MindX (persistent state)
+│ ├── config/ # Optional location for mindx_config.json
+│ ├── logs/ # Application logs (e.g., mindx_system.log)
+│ ├── self_improvement_work_sia/ # Data specific to SelfImprovementAgent instances
+│ │ └── self_improve_agent/ # Subdirectory named after SIA script stem
+│ │ ├── archive/ # SIA's detailed attempt history (improvement_history.jsonl)
+│ │ └── fallback_versions/ # Backups of SIA script after successful self-updates
+│ ├── temp_sia_contexts/ # Temporary files for Coordinator to pass large contexts to SIA CLI
+│ ├── improvement_backlog.json # Coordinator's prioritized list of improvement tasks
+│ ├── improvement_campaign_history.json # Coordinator's log of dispatched SIA campaigns
+│ ├── sea_campaign_history_*.json # StrategicEvolutionAgent's campaign history files
+│ ├── bdi_notes/ # Example notes directory for BDI tools
+│ └── performance_metrics.json # Persisted data from PerformanceMonitor
+├── tests/ # Placeholder for unit and integration tests
+├── .env # Local environment variables (API keys, overrides - GIT IGNORED)
+├── mindx_config.json # Optional global JSON configuration file (example)
+├── pyproject.toml # Project metadata, dependencies, tool configurations
 └── README.md # This file
 ```
 ## Getting Started
 
 ### Prerequisites
 
--   Python 3.9+
--   `pip` for installing dependencies
--   (Optional but Recommended) An Ollama server running locally if using Ollama models (e.g., for `deepseek-coder`, `nous-hermes2`). Download models:
-    ```bash
-    ollama pull deepseek-coder:6.7b-instruct
-    ollama pull nous-hermes2
-    ```
--   (Optional) Google Gemini API Key if using Gemini models.
+-   Python 3.9 or higher.
+-   `pip` (Python package installer).
+-   Access to Large Language Models:
+    -   **Ollama (Recommended for local development):** Install Ollama and pull desired models (e.g., `ollama pull deepseek-coder:6.7b-instruct`, `ollama pull nous-hermes2:latest`).
+    -   **Google Gemini:** An API key from Google AI Studio.
+    -   Other providers can be integrated by extending `mindx.llm.llm_factory.py`.
 
 ### Installation
 
-1.  **Clone the repository (if applicable).**
-2.  **Create and activate a virtual environment:**
+1.  **Clone Repository:** If applicable.
+2.  **Create Virtual Environment:**
     ```bash
-    python -m venv .venv
-    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+    python3 -m venv .venv
+    source .venv/bin/activate  # Linux/macOS
+    # .venv\Scripts\activate   # Windows
     ```
-3.  **Install dependencies:**
-    From `pyproject.toml` (if you have one set up for the project):
+3.  **Install Dependencies:**
+    The `pyproject.toml` lists dependencies.
     ```bash
-    pip install . # or pip install .[dev] for development dependencies
+    pip install -e .[dev] 
+    # Installs MindX in editable mode with development dependencies (like pytest, ruff)
+    # Or, for runtime only: pip install .
     ```
-    Or, install individually:
-    ```bash
-    pip install psutil python-dotenv ollama google-generativeai 
-    # Add other LLM SDKs as needed
-    ```
+    This will install packages like `psutil`, `python-dotenv`, `PyYAML`, `ollama`, `google-generativeai`.
 
 ### Configuration
 
-1.  **Copy `.env.example` to `.env` (if an example is provided) or create a new `.env` file** in the project root (`augmentic_mindx/`).
-2.  **Edit `.env`** to include your API keys and preferred default LLM settings:
-
+1.  **Create `.env` file:** In the project root (`augmentic_mindx/`), create a `.env` file. You can copy `.env.example` if one is provided. This file is for secrets like API keys and local overrides. **It should be in `.gitignore`.**
+    Example `.env` content:
     ```env
-    # --- General ---
-    MINDX_LOG_LEVEL="INFO" # DEBUG, INFO, WARNING, ERROR
+    MINDX_LOG_LEVEL="INFO" # Or DEBUG for more verbosity
 
-    # --- Default LLM Provider ---
-    MINDX_LLM__DEFAULT_PROVIDER="ollama" # or "gemini"
+    MINDX_LLM__DEFAULT_PROVIDER="ollama"
+    MINDX_LLM__OLLAMA__DEFAULT_MODEL="nous-hermes2:latest"
+    MINDX_LLM__OLLAMA__DEFAULT_MODEL_FOR_CODING="deepseek-coder:6.7b-instruct"
+    # MINDX_LLM__OLLAMA__BASE_URL="http://localhost:11434" # Default
 
-    # --- Ollama Settings ---
-    MINDX_LLM__OLLAMA__DEFAULT_MODEL="nous-hermes2:latest" 
-    MINDX_LLM__OLLAMA__DEFAULT_MODEL_FOR_CODING="deepseek-coder:6.7b-instruct" 
-    # MINDX_LLM__OLLAMA__BASE_URL="http://localhost:11434" # Default, uncomment if different
-
-    # --- Gemini Settings ---
-    GEMINI_API_KEY="YOUR_GEMINI_API_KEY_HERE" # Non-prefixed for direct SDK use if needed
-    MINDX_LLM__GEMINI__API_KEY="YOUR_GEMINI_API_KEY_HERE" # Prefixed for Config system
+    # GEMINI_API_KEY="YOUR_GEMINI_API_KEY" # For direct SDK use if needed by a tool
+    MINDX_LLM__GEMINI__API_KEY="YOUR_GEMINI_API_KEY_HERE"
     MINDX_LLM__GEMINI__DEFAULT_MODEL="gemini-1.5-flash-latest"
-    MINDX_LLM__GEMINI__DEFAULT_MODEL_FOR_CODING="gemini-1.5-pro-latest"
 
-
-    # --- Self Improvement Agent Specific LLM ---
-    MINDX_SELF_IMPROVEMENT_AGENT__LLM__PROVIDER="ollama"
-    MINDX_SELF_IMPROVEMENT_AGENT__LLM__MODEL="deepseek-coder:6.7b-instruct"
-
-    # --- Coordinator Agent Specific LLM (for system analysis) ---
-    MINDX_COORDINATOR__LLM__PROVIDER="ollama"
-    MINDX_COORDINATOR__LLM__MODEL="nous-hermes2:latest"
-
-    # --- Autonomous Improvement ---
-    MINDX_COORDINATOR__AUTONOMOUS_IMPROVEMENT__ENABLED="false" # Set to "true" to enable
-    MINDX_COORDINATOR__AUTONOMOUS_IMPROVEMENT__INTERVAL_SECONDS="3600" # e.g., 1 hour
+    MINDX_COORDINATOR__AUTONOMOUS_IMPROVEMENT__ENABLED="false" # Start with false
     MINDX_COORDINATOR__AUTONOMOUS_IMPROVEMENT__REQUIRE_HUMAN_APPROVAL_FOR_CRITICAL="true"
-    # Critical components are defined in config.py defaults or mindx_config.json
     ```
-3.  (Optional) Create `mindx_config.json` in the project root or `data/config/` to override code defaults if preferred over environment variables for some settings. Environment variables (`MINDX_` prefixed) will always take the highest precedence.
+2.  **(Optional) `mindx_config.json`:** For non-sensitive, shared default configurations, you can create `mindx_config.json` in the project root or `data/config/`. Settings in `.env` or actual environment variables (prefixed with `MINDX_`) will override `mindx_config.json`.
 
 ### Running MindX
 
-The primary way to interact with the system is through the `CoordinatorAgent`'s CLI:
+The primary interface is the Coordinator's CLI:
 
 ```bash
 python scripts/run_mindx_coordinator.py
 Use code with caution.
-Once the MindX CLI > prompt appears, you can issue commands:
-help: Displays available commands.
-query <your question>: Ask a general question.
-MindX CLI > query What is the Dunning-Kruger effect?
+Once the MindX CLI > prompt appears, you can interact with the system:
+Get Help: help
+Query: query What is the primary goal of the SelfImprovementAgent?
+System Analysis: analyze_system Focus on improving the LLM prompt quality for code generation.
+View Improvement Backlog: backlog
+Approve/Reject Critical Backlog Item (get ID from backlog command):
+approve goal_abc123xyz
+reject goal_def456uvw
 Use code with caution.
-analyze_system [optional focus for analysis]: Trigger a system-wide analysis. Suggestions will be added to the improvement backlog.
-MindX CLI > analyze_system Focus on optimizing resource usage in monitoring agents.
+Manually Trigger Backlog Processing: process_backlog (attempts highest priority actionable item)
+Directly Request Component Improvement:
+improve mindx.utils.config Add validation for LLM provider names.
+improve self_improve_agent_cli_mindx Make the self-test suite more comprehensive.
 Use code with caution.
-improve <component_id> [optional improvement goal/context]: Request improvement for a specific component.
-<component_id> is a Python module path (e.g., mindx.utils.config) or the special ID self_improve_agent_cli_mindx (to make the SIA improve itself).
-MindX CLI > improve mindx.core.belief_system Add a method to get all belief keys matching a prefix.
-MindX CLI > improve self_improve_agent_cli_mindx Enhance the detail in LLM critique justifications.
-Use code with caution.
-backlog: View the current improvement backlog.
-process_backlog: Manually trigger the Coordinator to attempt the highest-priority actionable item from the backlog.
-approve <backlog_item_id>: Approve a backlog item that is pending_approval. Get the ID from the backlog command.
-reject <backlog_item_id>: Reject a pending_approval item.
-quit or exit: Shut down the system.
-Standalone SIA testing:
-You can also test the SelfImprovementAgent directly (useful for debugging its core logic):
-python mindx/learning/self_improve_agent.py self --context "Refactor the _ensure_directories_exist method to log more verbosely." --output-json
-Use code with caution.
-Bash
+Exit: quit or exit
+If MINDX_COORDINATOR__AUTONOMOUS_IMPROVEMENT__ENABLED="true" in your .env, the Coordinator will periodically run its analysis and improvement cycle in the background.
 Current Status & Limitations
-Core Loop Implemented: The CoordinatorAgent -> SelfImprovementAgent (CLI) -> LLM -> Code Change -> Evaluation -> Promotion (for SIA self-updates) loop is functional.
-Safety Mechanisms: SIA includes iteration directories, self-tests (basic), backups, and fallbacks for its own code.
-Autonomous Capabilities: The Coordinator has an autonomous loop with backlog management and HITL for critical changes.
-Monitoring: Basic resource and LLM performance monitoring is in place.
-LLM Dependency: The quality and success of improvements are heavily reliant on the capabilities of the configured LLMs.
-Evaluation Robustness: The current evaluation within SIA (syntax check, self-tests, LLM critique) is a good start but could be significantly enhanced with:
-Comprehensive unit and integration test execution against modified code.
-Static analysis tools (linters, type checkers).
-Performance benchmarking.
-System Restart: After the SIA updates itself or the Coordinator, the running Python process uses the old code. A manual or external-supervisor-triggered restart is required for these changes to take effect. The system logs warnings and sets beliefs when this is needed.
-Peripheral Agent Stubs: Components like MultiModelAgent, ModelSelector, BDIAgent, DocumentationAgent are currently functional stubs and would need full implementation for a complete MindX vision.
-Error Handling: While improved, complex distributed systems can always benefit from more nuanced error recovery and state management.
+Core Self-Improvement Loop: The strategic (StrategicEvolutionAgent conceptually, driven by CoordinatorAgent's autonomous loop) and tactical (SelfImprovementAgent CLI) layers for identifying, planning (LLM-based), executing, and evaluating single-file Python code changes are functional.
+Safety Mechanisms: SIA's iteration directories, self-tests for its own code, backups, and critique thresholds provide a good level of safety for automated code changes. HITL in Coordinator for critical targets adds another layer.
+LLM Dependency: The quality of analysis, planning, code generation, and critique is heavily dependent on the capabilities of the configured LLMs and the quality of prompt engineering.
+Evaluation Limitations: Current SIA evaluation relies on syntax checks, custom self-tests (for SIA itself), and LLM critique. It lacks integration with broader unit/integration test suites for arbitrary target files or performance benchmark execution.
+System Restart for Critical Updates: If the SIA or CoordinatorAgent updates its own code, the running Python process uses the old code. A manual or external-supervisor-triggered restart is required for these changes to take effect. The system logs warnings and sets beliefs when this is needed.
+Peripheral Agent Functionality: Components like MultiModelAgent, ModelSelector, BDIAgent (as a general-purpose component beyond SEA's internal one), and DocumentationAgent are currently functional stubs. Their full implementation would be needed for a truly comprehensive MindX system.
+Complex Multi-File Refactoring: The current SIA is designed to operate on one file at a time. Large-scale refactoring across multiple files is not yet supported.
 Future Directions
-Enhance the SIA's evaluation phase with automated test execution and static analysis.
-Develop the peripheral agents (MultiModelAgent, BDIAgent, etc.) into fully functional components.
-Implement more sophisticated strategies in the CoordinatorAgent for prioritizing backlog items and learning from past improvement successes/failures.
-Explore mechanisms for automated system restart or dynamic module reloading after critical self-updates.
-Expand the scope of self-improvement beyond single Python files (e.g., configuration files, documentation, multi-file refactoring).
+Enhanced Evaluation: Integrate SIA with project-specific unit/integration test frameworks and static analysis tools.
+Full Peripheral Agent Implementation: Develop MultiModelAgent, ModelSelector, BDIAgent, and DocumentationAgent into fully capable components.
+Advanced Strategic Reasoning (SEA): Improve the StrategicEvolutionAgent's ability to learn from campaign outcomes, manage resources for improvement tasks, and perform more complex long-term planning.
+Automated System Restart/Reload: Investigate mechanisms for safer dynamic updates or controlled restarts after critical self-modifications.
+Broader Scope of Improvement: Extend self-improvement capabilities to other types of system artifacts (e.g., configuration files, documentation, CI/CD pipelines).
+User Interface: Develop a web UI or more sophisticated CLI for interacting with MindX, managing the backlog, and observing system state.
+This README provides a snapshot of the Augmentic MindX project, focusing on its self-improvement capabilities. It's an ongoing experiment in building more autonomous and adaptive AI systems.
