@@ -1,4 +1,5 @@
-# LLM Factory and Handlers (`llm_factory.py`) - v4 (Modular Handlers, Groq, External JSON Config)
+# LLM Factory and Handlers (`llm_factory.py`) - v4
+# (Modular Handlers, Groq, External JSON Config)
 
 ## Introduction
 
