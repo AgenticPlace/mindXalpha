@@ -1,92 +1,94 @@
-# LLM Factory and Handlers (`llm_factory.py`) - v3
+# LLM Factory and Handlers (`llm_factory.py`) - v4 (Modular Handlers, Groq, External JSON Config)
+
 ## Introduction
 
-This module is central to MindX's ability to interact with various Large Language Models (LLMs). It provides:
--   An `LLMHandlerInterface` (conceptual abstract class) defining the common contract for specific LLM provider handlers.
--   Concrete handler implementations for different providers (currently `OllamaHandler`, `GeminiHandler`, and a `MockLLMHandler`).
--   A factory function `create_llm_handler` that instantiates and returns the appropriate handler based on a sophisticated configuration hierarchy, and caches these instances for reuse.
--   **New in v3:** The factory can now load a dedicated JSON configuration file (`llm_factory_config.json`) for more granular control over provider settings and model preferences, including overrides for Cloud Run friendly Ollama models.
+This module is the cornerstone of MindX's interactions with various Large Language Models (LLMs). It defines a common interface for LLM operations and provides a factory function to create and manage specific LLM provider handlers. This version (v4) emphasizes modularity by expecting concrete handlers (like `OllamaHandler`, `GeminiHandler`, `GroqHandler`) to reside in their own separate files within the `mindx/llm` package. It continues to support an external JSON configuration file (`llm_factory_config.json`) for fine-grained control over factory behavior and model preferences, including defaults suitable for environments like Google Cloud Run.
 
 ## Explanation
 
-### `LLMHandlerInterface` (Conceptual)
+### Core Components
 
-Defines the expected methods for any LLM handler. Key method:
--   `async def generate_text(self, prompt: str, model: str, max_tokens: Optional[int], temperature: Optional[float], json_mode: Optional[bool], **kwargs: Any) -> Optional[str]`:
-    -   `model`: The **specific model name/tag** for the provider's API call (e.g., "llama3:8b-instruct-q5_K_M").
-    -   `json_mode`: If `True`, instructs the handler to attempt to get JSON output from the LLM.
+1.  **`LLMHandlerInterface` (in `llm_interface.py`):**
+    *   An Abstract Base Class (or conceptual interface) defining the common contract all specific LLM provider handlers must implement.
+    *   Key method: `async def generate_text(self, prompt: str, model: str, max_tokens: Optional[int], temperature: Optional[float], json_mode: Optional[bool], **kwargs: Any) -> Optional[str]`.
+        -   `model`: This argument is the **specific model name/tag** that the provider's API expects (e.g., "llama3:8b-instruct-q5_K_M", "gemini-1.5-pro-latest").
+        -   `json_mode`: A boolean hint. If `True`, the handler should instruct the LLM to return a valid JSON object string.
 
-### Concrete Handlers
+2.  **Concrete Handlers (in separate files, e.g., `ollama_handler.py`, `gemini_handler.py`, `groq_handler.py`, `mock_llm_handler.py`):**
+    *   Each handler implements `LLMHandlerInterface`.
+    *   **`OllamaHandler`**: Interacts with an Ollama server using direct HTTP API calls via `aiohttp` (instead of the `ollama` SDK for more control, as per user-provided code).
+    *   **`GeminiHandler`**: Interacts with Google Gemini models via the `google-generativeai` SDK.
+    *   **`GroqHandler`**: Interacts with Groq Cloud's API via the `groq` Python SDK.
+    *   **`MockLLMHandler`**: A fallback for testing or unconfigured providers.
+    *   Each handler is initialized with a `model_name_for_api` (its default model if `generate_text` is called without a specific `model` argument), and provider-specific needs like API keys or base URLs.
 
--   **`OllamaHandler`**: Interacts with Ollama. Dynamically imports `ollama` SDK. Handles `json_mode` via Ollama's API.
--   **`GeminiHandler`**: Interacts with Google Gemini. Dynamically imports `google-generativeai` SDK. Requires API key. Handles `json_mode` by prompt engineering or `response_mime_type` if supported. Includes basic safety settings.
--   **`MockLLMHandler`**: Fallback for testing or unconfigured providers. Returns predefined/dynamic mock responses.
+3.  **`OLLAMA_CLOUD_RUN_MODELS_PY` Constant (in `llm_factory.py`):**
+    *   A default Python dictionary defining "Cloud Run Friendly" Ollama models, categorized by resource fit.
+    *   This list can be **overridden or extended** by the `ollama_settings_for_factory.cloud_run_friendly_models` section in `llm_factory_config.json`.
+    *   Includes `default_coding_preference_order` and `default_general_preference_order` to guide default model selection for Ollama if no specific model is configured.
 
-### `OLLAMA_CLOUD_RUN_MODELS_PY` Constant
+4.  **`_load_llm_factory_config_json()` Helper Function (in `llm_factory.py`):**
+    *   Loads settings from `PROJECT_ROOT/mindx/data/config/llm_factory_config.json` (path itself configurable via global `Config`). This JSON file allows granular control over factory behavior without code changes.
 
--   A Python dictionary (default internal list) defining "Cloud Run Friendly" Ollama models.
--   This list can be **overridden or extended** by the `ollama_settings_for_factory.cloud_run_friendly_models` section in `llm_factory_config.json`.
--   Includes `id` (for preference lists), `ollama_name` (API tag), `type` (coding/general), and estimated memory.
--   Defines `default_coding_preference_order` and `default_general_preference_order`.
-
-### `_load_llm_factory_config_json()` Helper Function
-
--   This internal function is called once to load `PROJECT_ROOT/mindx/data/config/llm_factory_config.json`.
--   If the file exists, its content is parsed and cached. If not, an empty dictionary is used.
--   This allows for factory-specific overrides and configurations without altering the main `Config` object or `.env` for every detail.
-
-### `create_llm_handler` Factory Function (Key Enhancements in v3)
-
-This asynchronous function is the **primary way** to obtain an LLM handler.
-
--   **Layered Configuration Sourcing Precedence (for provider, model, API key, base URL):**
-    1.  **Direct Arguments:** Values passed directly to `create_llm_handler` (e.g., `provider_name`, `model_name`) take highest precedence.
-    2.  **`llm_factory_config.json`:** Settings from `llm_factory_config.json` (e.g., `ollama_settings_for_factory.default_model_override`) are checked next. This allows for centralized factory-specific defaults.
-    3.  **Global `Config` (`mindx_config.json` / `.env` / `MINDX_` Env Vars):** Values from the main `Config` object (e.g., `config.get("llm.ollama.default_model")`) are used if not found in arguments or factory JSON.
-    4.  **Internal Defaults (Python code):** Hardcoded defaults in the factory or handlers are the ultimate fallback.
--   **Cloud Run Aware Default for Ollama (Enhanced):**
-    *   If the resolved provider is `"ollama"` and no specific `eff_model_name` is determined from direct args or configs:
-        1.  It first checks the `ollama_settings_for_factory.cloud_run_friendly_models` section in `llm_factory_config.json`.
-        2.  If not found there, it uses the internal `DEFAULT_OLLAMA_CLOUD_RUN_MODELS_PY`.
-        3.  It then iterates through the `default_coding_preference_order` from the chosen model list, selecting the first available model.
-        4.  If no coding model is found, it tries the `default_general_preference_order`.
-        5.  This provides a flexible, configurable way to default to resource-efficient models for Ollama, especially useful for Cloud Run.
--   **Handler Instantiation and Caching:**
-    *   Based on the final effective provider name, it instantiates the correct handler (`OllamaHandler`, `GeminiHandler`, etc.).
-    *   The specific model name passed to the handler's constructor (`model_name_for_api`) can also be influenced by `llm_factory_config.json` (`provider_specific_handler_config.<provider>.default_model_for_api_call`).
-    *   Instances are cached using a key derived from all effective parameters (provider, model, key, URL) to avoid redundant initializations. An `asyncio.Lock` ensures cache safety.
+5.  **`create_llm_handler` Factory Function (in `llm_factory.py`):**
+    *   This asynchronous function is the **sole recommended way** for MindX components to obtain an LLM handler.
+    *   **Layered Configuration Sourcing (for provider, API model name, API key, base URL):**
+        1.  Direct arguments passed to `create_llm_handler`.
+        2.  `llm_factory_config.json` (e.g., `ollama_settings_for_factory.default_model_override`).
+        3.  Global `Config` (`mindx_config.json` / `.env` / `MINDX_` Env Vars, e.g., `config.get("llm.ollama.default_model")`).
+        4.  Internal Python defaults (like `OLLAMA_CLOUD_RUN_MODELS_PY` or hardcoded fallbacks).
+    *   **Cloud Run Aware Default for Ollama:** If the provider is "ollama" and no specific model name is resolved through arguments or higher-precedence configs, it intelligently selects a default model from the "Cloud Run Friendly" lists (from JSON config or Python default), prioritizing coding models.
+    *   **Handler Instantiation:** Based on the final effective provider name, it instantiates the appropriate handler class (e.g., `OllamaHandler`, `GeminiHandler`, `GroqHandler`). The `model_name_for_api` passed to the handler's constructor (which becomes the handler's internal default model) is also resolved through the configuration layers.
+    *   **Caching:** Instantiated handlers are cached using a key derived from all effective construction parameters (provider, API model name, API key, base URL). An `asyncio.Lock` ensures cache safety.
 
 ## Technical Details
 
--   **External Factory Configuration:** `llm_factory_config.json` allows fine-tuning factory behavior and default model choices without code changes.
--   **Dynamic SDK Imports:** SDKs are imported only when their specific handlers are needed.
--   **Robust Parameter Resolution:** The factory method systematically resolves each necessary parameter (provider, model, API key, base URL) through the layers of configuration.
+-   **Modular Handlers:** Each LLM provider's interaction logic is encapsulated in its own handler class in a separate file (e.g., `groq_handler.py`), imported by the factory. This improves organization and extensibility.
+-   **External Factory Configuration:** `llm_factory_config.json` offers a dedicated place to fine-tune the factory's behavior and model preferences without altering global application configuration or code.
+-   **Dynamic SDK Imports:** SDKs are typically imported within their respective handler files, allowing the factory to function even if not all optional LLM SDKs are installed (falling back to `MockLLMHandler` for missing ones).
 
 ## Usage
 
-  **Create `PROJECT_ROOT/mindx/data/config/llm_factory_config.json` (Optional):**
-    Populate this file with any factory-specific overrides. See example JSON provided with the Python code. If this file is omitted, the factory relies on global `Config` and internal defaults.
-
-  **From any MindX component:**
+1.  **Ensure Dependencies:** Install necessary SDKs (e.g., `pip install groq ollama google-generativeai`).
+2.  **Configure `.env`:** Include necessary API keys (e.g., `GROQ_API_KEY`, `MINDX_LLM__GEMINI__API_KEY`).
+3.  **Create/Configure `PROJECT_ROOT/mindx/data/config/llm_factory_config.json` (Optional but Recommended):**
+    Define provider preferences, model overrides, or custom Cloud Run model lists. See the example JSON provided with the Python code for structure.
+4.  **Obtain and Use Handlers in MindX Components:**
     ```python
     from mindx.llm.llm_factory import create_llm_handler
 
-    async def example_llm_interaction():
-        # Case 1: Use system default LLM (resolved by factory via Config and llm_factory_config.json)
-        handler1 = await create_llm_handler()
-        # The actual model used by handler1.generate will be handler1.model_name_for_api
-        response1 = await handler1.generate_text(prompt="Hello", model=handler1.model_name_for_api) 
-        print(f"Handler 1 ({handler1.provider_name}/{handler1.model_name_for_api}) says: {response1}")
+    async def example_task_execution(prompt: str, preferred_provider: Optional[str] = None, specific_model: Optional[str] = None):
+        try:
+            # Factory resolves best handler and model based on args and configs
+            handler = await create_llm_handler(provider_name=preferred_provider, model_name=specific_model)
+            
+            # The model to use for *this specific generate_text call* is handler.model_name_for_api
+            # if you want the handler's configured default, or you can override it here.
+            # If specific_model was passed to create_llm_handler, handler.model_name_for_api will be that.
+            api_call_model = specific_model or handler.model_name_for_api 
+            if not api_call_model: # Should not happen if factory logic is sound
+                print("Error: No effective model name could be determined.")
+                return
 
-        # Case 2: Request a specific provider, let factory pick model (potentially Cloud Run default for Ollama)
-        ollama_handler = await create_llm_handler(provider_name="ollama")
-        response2 = await ollama_handler.generate_text(prompt="Code a quicksort in Python", model=ollama_handler.model_name_for_api, json_mode=False)
-        print(f"Ollama Handler ({ollama_handler.model_name_for_api}) says: {response2}")
+            response = await handler.generate_text(
+                prompt=prompt,
+                model=api_call_model, 
+                max_tokens=1024,
+                temperature=0.5
+            )
 
-        # Case 3: Request specific provider and model, overriding all defaults
-        specific_gemini_handler = await create_llm_handler(provider_name="gemini", model_name="gemini-1.0-pro") # Assuming 1.0 is a valid tag
-        response3 = await specific_gemini_handler.generate_text(prompt="Explain black holes", model=specific_gemini_handler.model_name_for_api)
-        print(f"Specific Gemini ({specific_gemini_handler.model_name_for_api}) says: {response3}")
+            if response and not response.startswith("Error:"):
+                print(f"Response from {handler.provider_name}/{api_call_model}:\n{response}")
+            else:
+                print(f"Error from {handler.provider_name}/{api_call_model}: {response}")
+
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+    # Example calls:
+    # asyncio.run(example_task_execution("Write a Python function for quicksort.", preferred_provider="ollama", specific_model="deepseek-coder:6.7b-instruct"))
+    # asyncio.run(example_task_execution("Explain the theory of relativity briefly.", preferred_provider="gemini"))
+    # asyncio.run(example_task_execution("What's the fastest way to summarize a document?", preferred_provider="groq")) 
     ```
 
-This enhanced `LLMFactory` provides a highly flexible and configurable way to manage LLM interactions, adapting to different deployment environments (like Cloud Run) and user preferences.
+This modular and highly configurable `LLMFactory` provides MindX with a robust and adaptable interface to a variety of Large Language Models.
