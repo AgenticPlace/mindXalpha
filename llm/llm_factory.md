@@ -1,5 +1,4 @@
-# LLM Factory and Handlers (`llm_factory.py`) - v3 with External JSON Configuration
-
+# LLM Factory and Handlers (`llm_factory.py`) - v3
 ## Introduction
 
 This module is central to MindX's ability to interact with various Large Language Models (LLMs). It provides:
