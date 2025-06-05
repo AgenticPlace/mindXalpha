@@ -132,3 +132,90 @@ The CoordinatorAgent or StrategicEvolutionAgent can instantiate and call BaseGen
 Use code with caution.
 Python
 The BaseGenAgent, with its externalized and modifiable configuration, becomes a more integral and evolvable part of the MindX ecosystem, providing a standardized way to snapshot and understand codebases.
+
+BaseGenAgent (Codebase Documentation Generator) CLI Usage
+The BaseGenAgent can be run from the command line to generate Markdown documentation for a specified codebase directory.
+Basic Command Structure:
+python mindx/tools/base_gen_agent.py <input_dir> [options]
+Use code with caution.
+Bash
+Positional Arguments:
+<input_dir> (Required)
+Path to the codebase root directory you want to document.
+Example: mindx/core or . (for the current directory).
+Optional Arguments:
+-o <output_filepath>, --output <output_filepath>
+Specifies the full path (including filename) for the output Markdown file.
+If not provided, a default path and filename are generated based on the input_dir name and settings in the agent's configuration (typically in PROJECT_ROOT/data/generated_docs/codebase_snapshots/).
+Example: --output my_project_docs.md
+Example: --output docs/api/utils_snapshot.md
+--include <pattern_1> [<pattern_2> ...]
+One or more glob patterns for files to explicitly include.
+If this option is used, only files matching at least one of these patterns (and not excluded by other rules) will be processed.
+Patterns are relative to the <input_dir>.
+Examples:
+--include "*.py" (include all Python files)
+--include "src/**/*.js" "tests/*.py" (include JavaScript files in src subdirectories and Python files in tests)
+--exclude <pattern_1> [<pattern_2> ...]
+One or more glob patterns for files or directories to explicitly exclude.
+These exclusions are applied in addition to .gitignore rules (if enabled) and hardcoded excludes from the agent's configuration.
+Patterns are relative to the <input_dir>.
+Examples:
+--exclude "*.log" "temp_files/"
+--exclude "**/__pycache__/*" "docs/*"
+--no-gitignore
+Action flag. If present, the agent will not process any .gitignore files found within the <input_dir> to determine exclusions.
+By default (if this flag is absent), .gitignore files are respected.
+--config-file <path/to/agent_config.json>
+Specifies the path to a custom JSON configuration file for the BaseGenAgent.
+If not provided, the agent attempts to load its configuration from a default path (typically PROJECT_ROOT/mindx/data/config/basegen_config.json). If that's also not found, it uses internal fallback defaults.
+This allows you to have different sets of HARD_CODED_EXCLUDES, LANGUAGE_MAPPING, and other agent settings for different documentation tasks without modifying the default config file.
+Example: --config-file ./configs/python_only_doc_config.json
+--update-config '<json_string>'
+Allows direct modification of the agent's persistent default configuration file (the one at self.agent_config_file_path, which is PROJECT_ROOT/mindx/data/config/basegen_config.json unless overridden by --config-file in the same command).
+The <json_string> must be a valid JSON object string where keys are dot-separated paths to settings and values are the new settings.
+When this option is used, the agent updates the specified config file and then exits. It does not generate documentation in the same run.
+Special list operations for "HARD_CODED_EXCLUDES":
+To append unique items: '{"HARD_CODED_EXCLUDES": [{"_LIST_OP_":"APPEND_UNIQUE"}, "*.newext1", "*.newext2"]}'
+To remove items: '{"HARD_CODED_EXCLUDES": [{"_LIST_OP_":"REMOVE"}, "*.log", "*.tmp"]}'
+To replace the list entirely: '{"HARD_CODED_EXCLUDES": ["*.onlythis", "*.andthis"]}'
+To deep merge a dictionary (e.g., LANGUAGE_MAPPING or base_gen_agent_settings): '{"LANGUAGE_MAPPING": {".foo": "bar", "_MERGE_DEEP_": true}}'
+Examples:
+python mindx/tools/base_gen_agent.py --update-config '{"base_gen_agent_settings.max_file_size_kb_for_inclusion": 500}'
+python mindx/tools/base_gen_agent.py --config-file ./special_config.json --update-config '{"LANGUAGE_MAPPING..newlang": "mylang"}' (updates ./special_config.json)
+-h, --help
+Shows a help message listing all arguments and their descriptions, then exits.
+Output:
+The CLI will print a JSON object to standard output summarizing the result of the operation (either documentation generation or config update). This JSON includes:
+"status": "SUCCESS" or "FAILURE" (or "ERROR" for pre-execution issues, "FATAL_ERROR" for unexpected crashes).
+"message": A human-readable summary.
+"output_file": Path to the generated Markdown file (if documentation was generated).
+"files_included": Number of files included in the documentation (if generated).
+"error_type": (On fatal error) The type of Python exception.
+Exit Codes:
+0: Success.
+1: Operational failure (e.g., could not generate docs as specified, config update failed).
+2: Fatal error (e.g., unexpected Python exception during CLI setup).
+Examples:
+Generate documentation for the mindx/core directory, output to core_docs.md:
+python mindx/tools/base_gen_agent.py mindx/core -o core_docs.md
+Use code with caution.
+Bash
+Generate documentation for the current directory, including only .py and .md files, excluding anything in build/ directories, and ignoring .gitignore:
+python mindx/tools/base_gen_agent.py . --include "*.py" "*.md" --exclude "build/*" --no-gitignore
+Use code with caution.
+Bash
+Update the agent's default configuration to change the max file size and then generate docs using this new default:
+Step 1: Update config
+python mindx/tools/base_gen_agent.py --update-config '{"base_gen_agent_settings.max_file_size_kb_for_inclusion": 256}'
+Use code with caution.
+Bash
+Step 2: Generate docs (will use the updated default config if basegen_config.json was the one modified)
+python mindx/tools/base_gen_agent.py ./my_project
+Use code with caution.
+Bash
+Generate docs using a completely custom configuration file for this run only:
+python mindx/tools/base_gen_agent.py ./my_project --config-file ./configs/strict_python_only.json -o project_strict_py.md
+Use code with caution.
+Bash
+This provides a clear set of commands for using the BaseGenAgent (Codebase Documentation Generator) from the command line.
