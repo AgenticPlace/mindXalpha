@@ -1,5 +1,5 @@
 # LLM Factory and Handlers (`llm_factory.py`) - v4
-# (Modular Handlers, Groq, Gemini, Ollama
+# expandable modular handlers for Groq, Gemini, Ollama, etc
 mindX/data/config/llm_factory_config.json<br />
 
 ## Introduction
