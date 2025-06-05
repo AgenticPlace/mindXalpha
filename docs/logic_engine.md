@@ -108,4 +108,60 @@ await self.logic_engine.add_rule(LogicalRule(
     description="Input data checksum must match expected checksum.",
     is_constraint=True 
 ))
+
+#####################3
+# AGENT USAGE
+# --- In an agent's decision-making loop (e.g., BDI's deliberate or execute step) ---
+
+# a. Prepare the evaluation context from current beliefs
+#    The agent_belief_prefix helps scope beliefs relevant to this agent/task.
+agent_context_prefix = f"bdi.{self.domain}.beliefs.knowledge" # Example prefix
+current_snapshot_for_logic = await self.logic_engine._get_evaluation_context(
+    agent_belief_prefix_for_context=agent_context_prefix,
+    additional_context={"current_task_id": "task123"} # Any other dynamic vars
+)
+
+# b. Perform Inference
+# updated_snapshot, derived_effects = await self.logic_engine.forward_chain(current_snapshot_for_logic)
+# if derived_effects:
+#     logger.info(f"Agent {self.agent_id}: Logic engine derived {len(derived_effects)} new facts.")
+#     for effect in derived_effects:
+#         # Add these new facts back to the agent's shared BeliefSystem
+#         await self.belief_system.add_belief(
+#             f"{agent_context_prefix}.{effect['key']}", # Namespace appropriately
+#             effect['value'], effect['confidence'], effect['source'], effect.get('metadata')
+#         )
+#     # Refresh current_snapshot_for_logic if subsequent rules depend on these new facts in the same cycle
+#     current_snapshot_for_logic = updated_snapshot
+
+
+# c. Check Preconditions for an Action (using a specific rule)
+#    Assume 'action_to_take' has a 'precondition_rule_id' field.
+# precondition_rule = self.logic_engine.rules.get(action_to_take.precondition_rule_id)
+# if precondition_rule:
+#     if precondition_rule.evaluate_condition(current_snapshot_for_logic, self.logic_engine.allowed_eval_functions):
+#         logger.info(f"Agent {self.agent_id}: Preconditions MET for action {action_to_take.id}.")
+#         # ... proceed to execute action ...
+#     else:
+#         logger.warning(f"Agent {self.agent_id}: Preconditions NOT MET for action {action_to_take.id}. Rule: {precondition_rule.id}")
+#         # ... handle precondition failure (e.g., replan, wait) ...
+
+# d. Check System Consistency
+# violated_constraints = await self.logic_engine.check_consistency(current_snapshot_for_logic)
+# if violated_constraints:
+#     logger.error(f"Agent {self.agent_id}: SYSTEM INCONSISTENCY DETECTED! Violated rules: {[r.id for r in violated_constraints]}")
+#     # ... take corrective action, alert, or halt ...
+
+
+# e. Socratic Questioning to refine understanding or LLM prompt
+# if some_condition_for_deeper_reflection:
+#     socratic_qs = await self.logic_engine.generate_socratic_questions(
+#         topic_or_goal="Deciding on optimal strategy for resource allocation",
+#         agent_belief_prefix_for_context=agent_context_prefix # To fetch relevant beliefs
+#     )
+#     logger.info(f"Agent {self.agent_id}: Socratic Questions to consider for resource allocation:\n{socratic_qs}")
+#     # These questions could be:
+#     # - Logged for human review.
+#     # - Used to formulate a new, more detailed query to an LLM.
+#     # - Used by the agent to update its own goals or search for more information.
 await self.logic_engine.add_default_assumption("network_api.status", "responsive", confidence=0.6)
