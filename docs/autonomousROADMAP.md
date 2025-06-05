@@ -1,4 +1,4 @@
-# ROADMAP.md for MindX (Augmentic Project) - Web3 & Self-Funding Vision
+# mindX (Augmentic Intelligence) - Web3 & Self-Funding Vision
 This document outlines the strategic development roadmap for the MindX system. It is a living document, intended to be reviewed and potentially updated by the MindX system itself as its capabilities evolve.
 Our Guiding Vision: To create a robust, secure, and increasingly autonomous AI system (MindX) that can intelligently manage its own evolution, improve its capabilities, enhance its efficiency, explore novel operational paradigms including decentralized ecosystems, and ultimately contribute to solving complex problems.
 Phase I: Foundational Stability & Core Self-Improvement Loop (RC1 - Current)
