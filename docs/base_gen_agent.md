@@ -6,9 +6,9 @@ see mindX/tools/base_gen_agent.py
 The `BaseGenAgent` is a utility agent within the MindX toolkit (Augmentic Project). Its primary function is to automatically generate a comprehensive Markdown document that provides a snapshot of a given codebase directory. This documentation includes a visual directory tree of included files and the complete content of those files, with appropriate language tagging for Markdown syntax highlighting.
 
 A key feature of this agent is its configurability. It intelligently filters files based on:
-1.  `.gitignore` rules found within the target codebase.
-2.  User-defined include/exclude glob patterns passed via CLI or programmatically.
-3.  A central, modifiable JSON configuration file (`basegen_config.json`) that specifies hardcoded file/pattern exclusions and language mappings for syntax highlighting.
+  `.gitignore` rules found within the target codebase.
+  User-defined include/exclude glob patterns passed via CLI or programmatically.
+  A central, modifiable JSON configuration file (`basegen_config.json`) that specifies hardcoded file/pattern exclusions and language mappings for syntax highlighting.
 
 This makes `BaseGenAgent` a valuable tool for MindX itself (e.g., for the `SelfImprovementAgent` or `CoordinatorAgent` to understand code they are about to modify) or for developers needing a quick, shareable overview of a project or component.
 
@@ -16,7 +16,7 @@ This makes `BaseGenAgent` a valuable tool for MindX itself (e.g., for the `SelfI
 
 ### Core Functionality
 
-1.  **Configuration Loading (`_load_agent_config`):**
+  **Configuration Loading (`_load_agent_config`):**
     *   The agent's behavior is controlled by a JSON configuration file, typically `PROJECT_ROOT/data/config/basegen_config.json`. A custom path can also be provided during instantiation.
     *   If the external config file is not found, it falls back to internal `DEFAULT_CONFIG_DATA`.
     *   **Configuration Merging:** Values from an external `basegen_config.json` are merged with the internal defaults. For lists like `HARD_CODED_EXCLUDES`, entries are combined and deduplicated. For dictionaries like `LANGUAGE_MAPPING` and the `base_gen_agent` settings block, external values update or override internal defaults.
@@ -27,21 +27,21 @@ This makes `BaseGenAgent` a valuable tool for MindX itself (e.g., for the `SelfI
             -   `max_file_size_kb_for_inclusion`: (Default: 1024KB) Files larger than this will have their content omitted with a warning.
             -   `default_output_filename`: Default name for the output Markdown if not specified by the caller.
 
-2.  **File Discovery and Filtering Logic (`generate_documentation`, `_should_include_file`):**
+  **File Discovery and Filtering Logic (`generate_documentation`, `_should_include_file`):**
     *   The agent recursively scans the target `root_path_str` directory.
     *   **`.gitignore` Processing (`_load_gitignore_specs`):** If `use_gitignore` is true (default), it finds all `.gitignore` files within the `root_path_str`, aggregates their patterns, and compiles them into a `pathspec.PathSpec` object. This spec is used to efficiently exclude any files or directories ignored by Git. The `.git/` directory itself is always implicitly ignored.
     *   **Filtering Precedence for `_should_include_file`:**
-        1.  If a file matches the `gitignore_spec` (and `use_gitignore` is true), it's **excluded**.
-        2.  The file is then checked against the combined exclude patterns (CLI/programmatic `user_exclude_patterns` + `HARD_CODED_EXCLUDES` from config). If it matches any, it's **excluded**.
-        3.  If `include_patterns` are provided (CLI/programmatic), the file **must match at least one** of these to be considered further. If it doesn't match any, it's **excluded**.
-        4.  If none of the above exclusion rules apply, the file is **included**.
+          If a file matches the `gitignore_spec` (and `use_gitignore` is true), it's **excluded**.
+          The file is then checked against the combined exclude patterns (CLI/programmatic `user_exclude_patterns` + `HARD_CODED_EXCLUDES` from config). If it matches any, it's **excluded**.
+          If `include_patterns` are provided (CLI/programmatic), the file **must match at least one** of these to be considered further. If it doesn't match any, it's **excluded**.
+          If none of the above exclusion rules apply, the file is **included**.
 
-3.  **Directory Tree Generation (`_build_tree_dict`, `_format_tree_lines`):**
+  **Directory Tree Generation (`_build_tree_dict`, `_format_tree_lines`):**
     *   A list of included files (as relative paths from the `root_path_str`) is used.
     *   `_build_tree_dict`: Constructs a nested dictionary representing the directory hierarchy of these included files.
     *   `_format_tree_lines`: Recursively traverses this dictionary to create an indented, human-readable string representation of the tree structure, suitable for Markdown `text` code blocks. Directories are marked with a trailing `/`.
 
-4.  **Markdown Document Generation (`generate_documentation`):**
+  **Markdown Document Generation (`generate_documentation`):**
     *   This is the main public method.
     *   It orchestrates scanning, filtering, and tree generation.
     *   It then iterates through the list of included files:
@@ -76,8 +76,7 @@ The agent can be executed directly:
 
 ```bash
 python mindx/tools/base_gen_agent.py <input_dir> [options]
-Use code with caution.
-Markdown
+```
 Key Arguments:
 input_dir: Path to the codebase root.
 -o, --output <filename>: Output Markdown file. Defaults to PROJECT_ROOT/data/generated_docs/<input_dir_name>_codebase_snapshot.md.
@@ -86,16 +85,18 @@ input_dir: Path to the codebase root.
 --no-gitignore: Ignore .gitignore files.
 --config-file <path/to/basegen_config.json>: Path to a custom agent configuration JSON file.
 Example:
+```bash
 python mindx/tools/base_gen_agent.py ./mindx \
     -o ./data/generated_docs/mindx_core_docs.md \
     --include "mindx/core/**/*.py" \
     --exclude "**/__pycache__/*" \
     --config-file ./data/config/custom_basegen_config.json
-Use code with caution.
-Bash
+```
+
 The CLI will print a JSON object summarizing the result.
 Programmatic Usage by Other MindX Agents
-The CoordinatorAgent or StrategicEvolutionAgent can instantiate and call BaseGenAgent to get a structured understanding of a component they intend to analyze or modify.
+The CoordinatorAgent or StrategicEvolutionAgent can instantiate and call BaseGenAgent to get a structured understanding of a component they intend to analyze or modify
+```python
 # from mindx.tools.base_gen_agent import BaseGenAgent
 # from mindx.utils.config import PROJECT_ROOT
 
@@ -129,8 +130,7 @@ The CoordinatorAgent or StrategicEvolutionAgent can instantiate and call BaseGen
 #         # ... further processing by the calling agent ...
 #     else:
 #         logger.error(f"BaseGenAgent failed: {result['message']}")
-Use code with caution.
-Python
+```
 The BaseGenAgent, with its externalized and modifiable configuration, becomes a more integral and evolvable part of the MindX ecosystem, providing a standardized way to snapshot and understand codebases.
 
 BaseGenAgent (Codebase Documentation Generator) CLI Usage
