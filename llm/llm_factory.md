@@ -1,5 +1,5 @@
 # LLM Factory and Handlers (`llm_factory.py`) - v4
-# (Modular Handlers, Groq, mindX/data/config/llm_config.json)
+# (Modular Handlers, Groq, mindX/data/config/llm_factory_config.json)
 
 ## Introduction
 
