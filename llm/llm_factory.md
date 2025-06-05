@@ -91,4 +91,4 @@ This module is the cornerstone of MindX's interactions with various Large Langua
     # asyncio.run(example_task_execution("What's the fastest way to summarize a document?", preferred_provider="groq")) 
     ```
 
-This modular and highly configurable `LLMFactory` provides MindX with a robust and adaptable interface to a variety of Large Language Models.
+This modular and highly configurable `LLMFactory` provides mindX with a robust and adaptable interface to a variety of Large Language Models. mindX should expand this as necessary.
