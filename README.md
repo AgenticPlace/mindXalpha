@@ -4,7 +4,7 @@
 
 ## Overview
 
-**MindX** is an experimental AI system developed under the conceptual "Augmentic Project." Its central design philosophy is **autonomous self-improvement**. MindX aims to analyze its own Python codebase, identify areas for enhancement, generate solutions using Large Language Models (LLMs), and apply these improvements safely, thereby evolving its capabilities over time. This project draws inspiration from concepts like the Darwin Gödel Machine, emphasizing empirical validation of changes and maintaining a history of its evolution.
+**mindX** is an experimental AI system developed under the conceptual "Augmentic Project." Its central design philosophy is **autonomous self-improvement**. MindX aims to analyze its own Python codebase, identify areas for enhancement, generate solutions using Large Language Models (LLMs), and apply these improvements safely, thereby evolving its capabilities over time. This project draws inspiration from concepts like the Darwin Gödel Machine, emphasizing empirical validation of changes and maintaining a history of its evolution.
 
 The system is architected around a suite of interacting Python agents and modules:
 
