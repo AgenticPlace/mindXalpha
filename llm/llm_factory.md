@@ -64,10 +64,10 @@ This asynchronous function is the **primary way** to obtain an LLM handler.
 
 ## Usage
 
-1.  **Create `PROJECT_ROOT/mindx/data/config/llm_factory_config.json` (Optional):**
+  **Create `PROJECT_ROOT/mindx/data/config/llm_factory_config.json` (Optional):**
     Populate this file with any factory-specific overrides. See example JSON provided with the Python code. If this file is omitted, the factory relies on global `Config` and internal defaults.
 
-2.  **From any MindX component:**
+  **From any MindX component:**
     ```python
     from mindx.llm.llm_factory import create_llm_handler
 
