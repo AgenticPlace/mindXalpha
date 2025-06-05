@@ -1,180 +1,186 @@
 # mindx/orchestration/mastermind_agent.py
 """
 MastermindAgent for MindX: The Apex Orchestrator and Evolutionary Director.
-
-This agent sits at the highest level of the MindX operational hierarchy.
-It is responsible for:
-- Setting long-term, overarching evolutionary goals for the MindX system.
-- Monitoring the overall health and progress of MindX via the CoordinatorAgent.
-- Initiating strategic improvement or development campaigns by tasking the
-  StrategicEvolutionAgent (SEA) (conceptually, or directly tasking Coordinator
-  with high-level analysis that SEA or Coordinator's loop would pick up).
-- Managing secure identities for newly conceptualized agents or tools via an
-  IDManagerAgent.
-- Operating autonomously based on its own BDI-driven reasoning to guide the
-  meta-evolution of the MindX system.
 """
 
 import os
-import logging
+# import logging # Replaced by get_logger
 import asyncio
 import json
 import time
 import uuid
 import re
+import copy # For deepcopy of default values in _load_json_file
+import stat # For file permissions in _ensure_data_dir
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple, Callable, Awaitable
+from typing import Dict, List, Any, Optional, Tuple, Callable, Awaitable, Union # Added Union
 
 from mindx.utils.config import Config, PROJECT_ROOT
 from mindx.utils.logging_config import get_logger
 from mindx.core.belief_system import BeliefSystem, BeliefSource
-from mindx.llm.llm_factory import create_llm_handler, LLMHandler
-# Mastermind uses its own BDI agent for its strategic execution loop
-from mindx.core.bdi_agent import BDIAgent, BaseTool as BDIBaseTool, Goal as BDIGoal, GoalSt as BDIGoalStatus
-# Mastermind uses IDManagerAgent for identity provisioning
+# LLMHandlerInterface for type hint, create_llm_handler for creation
+from mindx.llm.llm_interface import LLMHandlerInterface
+from mindx.llm.llm_factory import create_llm_handler
+from mindx.core.bdi_agent import BDIAgent, BaseTool as BDIBaseTool, Goal as BDIGoal, GoalStatus as BDIGoalStatus
 from mindx.core.id_manager_agent import IDManagerAgent
-# Mastermind interacts with the CoordinatorAgent
-from mindx.orchestration.coordinator_agent import CoordinatorAgent, InteractionType, InteractionStatus, Interaction
+from mindx.orchestration.coordinator_agent import CoordinatorAgent, InteractionType, InteractionStatus, Interaction # Added Interaction
 
 logger = get_logger(__name__)
 
 class MastermindAgent:
     """
     The MastermindAgent: Oversees the evolution and high-level strategy of the MindX system.
-    It can initiate the creation of new capabilities or agents by tasking subordinate systems.
     """
     _instance = None
-    _lock = asyncio.Lock() # Class-level lock for async-safe singleton factory
+    _lock = asyncio.Lock()
 
     @classmethod
-    async def get_instance(cls, # pragma: no cover
-                           agent_id: Optional[str] = None, 
+    async def get_instance(cls,
+                           agent_id: Optional[str] = None,
                            config_override: Optional[Config] = None,
                            belief_system_override: Optional[BeliefSystem] = None,
                            coordinator_agent_override: Optional[CoordinatorAgent] = None,
                            test_mode: bool = False) -> 'MastermindAgent':
-        """Factory method to get or create the singleton MastermindAgent instance."""
+        """Factory method to get or create the singleton MastermindAgent instance with async initialization."""
         async with cls._lock:
-            # agent_id defaults here if not provided, using config
-            temp_config = config_override or Config(test_mode=test_mode) # Ensure config is available for default ID
-            effective_agent_id = agent_id or temp_config.get("mastermind_agent.default_agent_id", "mastermind_ overseeing_prime")
-
+            temp_config = config_override or Config(test_mode=test_mode)
+            effective_agent_id = agent_id or temp_config.get("mastermind_agent.default_agent_id", "mastermind_overseeing_prime")
 
             if cls._instance is None or test_mode or cls._instance.agent_id != effective_agent_id:
                 if test_mode and cls._instance is not None and cls._instance.agent_id == effective_agent_id:
                     logger.debug(f"MastermindAgent Factory: Resetting existing test instance for '{effective_agent_id}'.")
-                    await cls._instance.shutdown() 
-                    cls._instance = None 
+                    await cls._instance.shutdown()
+                    cls._instance = None
                 elif test_mode and cls._instance is not None and cls._instance.agent_id != effective_agent_id: # pragma: no cover
                     logger.debug(f"MastermindAgent Factory: Test mode switching agent ID from '{cls._instance.agent_id}' to '{effective_agent_id}'. Shutting down old.")
                     await cls._instance.shutdown()
                     cls._instance = None
 
-
                 logger.info(f"MastermindAgent Factory: Creating new instance for ID '{effective_agent_id}'.")
-                # Dependencies must be ready for Mastermind's __init__
-                cfg = config_override or Config(test_mode=test_mode) # Ensure config respects test_mode again if it was reset
+                cfg = config_override or Config(test_mode=test_mode)
                 bs = belief_system_override or BeliefSystem(test_mode=test_mode)
-                
+
                 coord = coordinator_agent_override
-                if not coord and not test_mode: # pragma: no cover 
+                if not coord and not test_mode: # pragma: no cover
                     from mindx.orchestration.coordinator_agent import get_coordinator_agent_mindx_async
                     logger.warning(f"MastermindAgent Factory: CoordinatorAgent not provided for '{effective_agent_id}', getting/creating default instance.")
                     coord = await get_coordinator_agent_mindx_async(config_override=cfg, test_mode=test_mode)
-                elif not coord and test_mode: 
+                elif not coord and test_mode:
                     logger.warning(f"MastermindAgent Factory (test_mode): CoordinatorAgent not provided for '{effective_agent_id}'. Operations requiring it may fail if not mocked externally.")
 
-                if not coord: # Still no coordinator, this is a problem unless specifically in a test that mocks it out entirely
+                if not coord and not test_mode: # Added not test_mode here
                      logger.error(f"MastermindAgent Factory: CRITICAL - CoordinatorAgent could not be obtained for '{effective_agent_id}'. Mastermind will be impaired.")
-                     # Depending on strictness, could raise an error here.
 
+                # Create instance with synchronous __init__
                 instance = cls(
-                    agent_id=effective_agent_id, 
+                    agent_id=effective_agent_id,
                     belief_system_instance=bs,
-                    coordinator_agent_instance=coord, # This can be None if test_mode and not provided
+                    coordinator_agent_instance=coord,
                     config_override=cfg,
                     _is_factory_called=True,
                     test_mode=test_mode
                 )
+                # Perform asynchronous initialization steps
+                await instance._async_init_components()
                 cls._instance = instance
-            elif cls._instance.agent_id != effective_agent_id: # pragma: no cover 
+            elif cls._instance.agent_id != effective_agent_id: # pragma: no cover
                 logger.error(f"MastermindAgent Factory: ID mismatch. Requested '{effective_agent_id}' but singleton is '{cls._instance.agent_id}'. Not in test_mode. Returning existing.")
 
             return cls._instance
 
-    def __init__(self, 
-                 agent_id: str, 
+    def __init__(self,
+                 agent_id: str,
                  belief_system_instance: BeliefSystem,
-                 coordinator_agent_instance: Optional[CoordinatorAgent], # Make explicitly optional for robust init
+                 coordinator_agent_instance: Optional[CoordinatorAgent],
                  config_override: Optional[Config] = None,
                  _is_factory_called: bool = False,
                  test_mode: bool = False):
-        
+
         if not _is_factory_called and (MastermindAgent._instance is None or MastermindAgent._instance is not self) : # pragma: no cover
              logger.warning(f"MastermindAgent direct instantiation for '{agent_id}'. Prefer using `await MastermindAgent.get_instance(...)` for singleton management.")
 
-        if hasattr(self, '_initialized') and self._initialized and not test_mode: # pragma: no cover
+        # Check if already initialized to prevent re-initialization, unless in test_mode where re-init might be intended by factory
+        if hasattr(self, '_initialized_sync') and self._initialized_sync and not test_mode: # pragma: no cover
             return
 
         self.agent_id = agent_id
-        self.config = config_override or Config() # Ensures Config is initialized
+        self.config = config_override or Config(test_mode=test_mode) # Ensures Config is initialized
         self.belief_system = belief_system_instance
-        self.coordinator_agent = coordinator_agent_instance 
+        self.coordinator_agent = coordinator_agent_instance
         self.log_prefix = f"Mastermind ({self.agent_id}):"
+        self.test_mode = test_mode
 
-        # Define dedicated data directory for this Mastermind instance
-        data_dir_relative_path = self.config.get(f"mastermind_agent.{self.agent_id}.data_dir_relative_to_project", 
+        data_dir_relative_path = self.config.get(f"mastermind_agent.{self.agent_id}.data_dir_relative_to_project",
                                             f"data/mastermind_work/{self.agent_id.replace(':', '_').replace(' ','_')}")
         self.data_dir: Path = PROJECT_ROOT / data_dir_relative_path
         self._ensure_data_dir()
 
-        # Mastermind's own LLM for high-level strategic thought / goal formulation
-        mastermind_llm_config_key_prefix = f"mastermind_agent.{self.agent_id}.llm"
-        llm_provider_cfg = self.config.get(f"{mastermind_llm_config_key_prefix}.provider", self.config.get("llm.default_provider"))
-        llm_model_cfg = self.config.get(f"{mastermind_llm_config_key_prefix}.model", 
-                                       self.config.get(f"llm.{llm_provider_cfg}.default_model_for_strategy", 
-                                                       self.config.get(f"llm.{llm_provider_cfg}.default_model")))
-        self.llm_handler: LLMHandler = create_llm_handler(llm_provider_cfg, llm_model_cfg)
-        logger.info(f"{self.log_prefix} Internal LLM set to: {self.llm_handler.provider_name}/{self.llm_handler.model_name or 'default_for_provider'}")
+        # LLM handler will be initialized in _async_init_components
+        self.llm_handler: Optional[LLMHandlerInterface] = None
 
-        # Mastermind uses a BDI agent for its own strategic execution loop
         self.bdi_agent = BDIAgent(
-            domain=f"mastermind_strategy_{self.agent_id.replace(':','_').replace(' ','_')}", # Sanitize domain
-            belief_system_instance=self.belief_system, 
+            domain=f"mastermind_strategy_{self.agent_id.replace(':','_').replace(' ','_')}",
+            belief_system_instance=self.belief_system,
             config_override=self.config,
-            test_mode=test_mode # Propagate test_mode
+            test_mode=self.test_mode
         )
         self._register_mastermind_bdi_actions()
 
-        # IDManager for generating identities for new agents/tools MindX might create
-        self.id_manager_agent: Optional[IDManagerAgent] = None
-        if self.config.get(f"mastermind_agent.{self.agent_id}.enable_id_management", True): # Default True
+        self.id_manager_agent: Optional[IDManagerAgent] = None # To be initialized in _async_init_components if needed
+        
+        self.strategic_campaigns_history: List[Dict[str,Any]] = self._load_json_file("mastermind_campaigns_history.json", [])
+        self.high_level_objectives: List[Dict[str,Any]] = self._load_json_file("mastermind_objectives.json", [])
+        self._internal_state: Dict[str, Any] = {} # Initialize internal state
+
+        self.autonomous_loop_task: Optional[asyncio.Task] = None
+        self._initialized_sync = True # Mark synchronous part of init as done
+        self._initialized_async = False # Async part not yet done
+
+    async def _async_init_components(self):
+        """Handles asynchronous initialization of components like the LLM handler."""
+        if self._initialized_async and not self.test_mode: # pragma: no cover
+            return
+
+        # Initialize Mastermind's own LLM for high-level strategic thought
+        mastermind_llm_config_key_prefix = f"mastermind_agent.{self.agent_id}.llm"
+        llm_provider_cfg = self.config.get(f"{mastermind_llm_config_key_prefix}.provider", self.config.get("llm.default_provider"))
+        llm_model_cfg = self.config.get(f"{mastermind_llm_config_key_prefix}.model",
+                                       self.config.get(f"llm.{llm_provider_cfg}.default_model_for_strategy",
+                                                       self.config.get(f"llm.{llm_provider_cfg}.default_model")))
+        try:
+            self.llm_handler = await create_llm_handler(provider_name=llm_provider_cfg, model_name=llm_model_cfg)
+            logger.info(f"{self.log_prefix} Internal LLM set to: {self.llm_handler.provider_name}/{self.llm_handler.model_name_for_api or 'default_for_provider'}")
+        except Exception as e: # pragma: no cover
+            logger.error(f"{self.log_prefix} Failed to create LLM handler: {e}. Mastermind LLM operations will fail.", exc_info=True)
+            # Optionally, assign a MockLLMHandler here as a fallback if critical
+            from mindx.llm.mock_llm_handler import MockLLMHandler
+            self.llm_handler = MockLLMHandler(model_name="mock_due_to_error")
+
+
+        # IDManagerAgent (can remain sync if its get_instance is sync)
+        if self.config.get(f"mastermind_agent.{self.agent_id}.enable_id_management", True):
             try:
-                id_manager_instance_id = self.config.get(f"mastermind_agent.{self.agent_id}.id_manager_instance_id", 
+                id_manager_instance_id = self.config.get(f"mastermind_agent.{self.agent_id}.id_manager_instance_id",
                                                         f"id_manager_for_{self.agent_id}")
-                # IDManagerAgent.get_instance is sync in current design.
                 self.id_manager_agent = IDManagerAgent.get_instance(
-                    agent_id=id_manager_instance_id, 
+                    agent_id=id_manager_instance_id,
                     config_override=self.config,
-                    test_mode=test_mode 
+                    test_mode=self.test_mode
                 )
             except Exception as e_id_mgr: # pragma: no cover
                 logger.error(f"{self.log_prefix} Failed to initialize IDManagerAgent: {e_id_mgr}. Identity functionalities will be impaired.", exc_info=True)
-        
-        self.strategic_campaigns_history: List[Dict[str,Any]] = self._load_json_file("mastermind_campaigns_history.json", [])
-        self.high_level_objectives: List[Dict[str,Any]] = self._load_json_file("mastermind_objectives.json", []) # Persisted objectives
 
-        self.autonomous_loop_task: Optional[asyncio.Task] = None
-        if self.config.get(f"mastermind_agent.{self.agent_id}.autonomous_loop.enabled", False) and not test_mode: # pragma: no cover
+        if self.config.get(f"mastermind_agent.{self.agent_id}.autonomous_loop.enabled", False) and not self.test_mode: # pragma: no cover
             self.start_autonomous_loop()
 
-        logger.info(f"{self.log_prefix} Initialized. Data dir: {self.data_dir}. Autonomous Loop: {bool(self.autonomous_loop_task)}. ID Manager: {'Active' if self.id_manager_agent else 'Inactive'}")
-        self._initialized = True
+        logger.info(f"{self.log_prefix} Asynchronously initialized. LLM: {'Active' if self.llm_handler and self.llm_handler.provider_name != 'mock' else 'Mock/Inactive'}. ID Manager: {'Active' if self.id_manager_agent else 'Inactive'}. Loop: {bool(self.autonomous_loop_task)}")
+        self._initialized_async = True
+
 
     def _ensure_data_dir(self): # pragma: no cover
         try:
             self.data_dir.mkdir(parents=True, exist_ok=True)
-            if os.name != 'nt': os.chmod(self.data_dir, stat.S_IRWXU) # rwx for owner
+            if os.name != 'nt': os.chmod(self.data_dir, stat.S_IRWXU)
         except Exception as e: logger.error(f"{self.log_prefix} Failed to create or set permissions for data dir {self.data_dir}: {e}")
 
     def _load_json_file(self, file_name: str, default_value: Union[List, Dict]) -> Union[List, Dict]: # pragma: no cover
@@ -183,18 +189,17 @@ class MastermindAgent:
             try:
                 with file_path.open("r", encoding="utf-8") as f: return json.load(f)
             except Exception as e: logger.error(f"{self.log_prefix} Error loading {file_name} from {file_path}: {e}")
-        return copy.deepcopy(default_value) 
+        return copy.deepcopy(default_value)
 
     def _save_json_file(self, file_name: str, data: Union[List, Dict]): # pragma: no cover
         file_path = self.data_dir / file_name
         try:
-            file_path.parent.mkdir(parents=True, exist_ok=True) # Ensure data_dir exists
+            file_path.parent.mkdir(parents=True, exist_ok=True)
             with file_path.open("w", encoding="utf-8") as f: json.dump(data, f, indent=2)
             logger.debug(f"{self.log_prefix} Saved data to {file_path}")
         except Exception as e: logger.error(f"{self.log_prefix} Error saving {file_name} to {file_path}: {e}")
 
     def _register_mastermind_bdi_actions(self): # pragma: no cover
-        """Registers handlers for actions Mastermind's internal BDI agent can take."""
         self.bdi_agent._action_handlers["OBSERVE_MINDX_SYSTEM_STATE"] = self._bdi_action_observe_mindx_state
         self.bdi_agent._action_handlers["FORMULATE_STRATEGIC_CAMPAIGN_GOAL"] = self._bdi_action_formulate_campaign_goal
         self.bdi_agent._action_handlers["LAUNCH_IMPROVEMENT_CAMPAIGN_VIA_COORDINATOR"] = self._bdi_action_launch_improvement_campaign
@@ -207,42 +212,45 @@ class MastermindAgent:
     async def _bdi_action_observe_mindx_state(self, action_params: Dict[str, Any], **kwargs) -> Tuple[bool, Any]: # pragma: no cover
         logger.info(f"{self.log_prefix} BDI Action: Observing MindX system state via Coordinator.")
         if not self.coordinator_agent: return False, {"message": "CoordinatorAgent not available to Mastermind for state observation."}
-        
+
         focus = action_params.get("analysis_focus", "current system health, active alerts, and top 2-3 pending high-priority improvement needs from Coordinator's backlog")
-        
+
         interaction = await self.coordinator_agent.create_interaction(
             interaction_type=InteractionType.SYSTEM_ANALYSIS,
             content=f"Mastermind request: Provide system state summary focused on: {focus}",
-            agent_id=self.agent_id, 
+            agent_id=self.agent_id,
             metadata={"source": self.agent_id, "analysis_depth": "summary_for_mastermind"}
         )
+        # Assuming process_interaction is part of CoordinatorAgent
         processed_interaction = await self.coordinator_agent.process_interaction(interaction)
+
 
         if processed_interaction.status == InteractionStatus.COMPLETED and isinstance(processed_interaction.response, dict):
             state_summary = processed_interaction.response
-            state_summary["coordinator_backlog_size"] = len(self.coordinator_agent.improvement_backlog) # Add current backlog size
+            state_summary["coordinator_backlog_size"] = len(self.coordinator_agent.improvement_backlog)
             state_summary["coordinator_pending_approval_count"] = len([item for item in self.coordinator_agent.improvement_backlog if item.get("status") == InteractionStatus.PENDING_APPROVAL.value])
 
             await self.bdi_agent.update_belief("mindx_state_summary_from_coordinator", state_summary, 0.85, BeliefSource.COMMUNICATION)
             return True, {"summary_retrieved": True, "state_summary_preview": str(state_summary)[:200]}
-        else: 
+        else:
             err_msg = f"Failed to get MindX state summary from Coordinator. Error: {processed_interaction.error or 'Unknown'}"
             logger.error(f"{self.log_prefix} {err_msg}")
             return False, {"message": err_msg}
 
     async def _bdi_action_formulate_campaign_goal(self, action_params: Dict[str, Any], **kwargs) -> Tuple[bool, Any]: # pragma: no cover
+        if not self.llm_handler: return False, {"message": "Mastermind LLM handler not initialized."}
+
         high_level_directive = action_params.get("directive", await self.bdi_agent.get_belief("current_mastermind_directive") or "Proactively evolve and improve the MindX system's overall effectiveness and capabilities.")
         mindx_state_summary_val = await self.bdi_agent.get_belief("mindx_state_summary_from_coordinator")
         mindx_state_summary_str = json.dumps(mindx_state_summary_val, indent=2)[:2000] if mindx_state_summary_val else "No detailed state summary available."
-        
+
         existing_objectives = [obj.get("goal_description") for obj in self.high_level_objectives if obj.get("status") == "active"]
         existing_objectives_str = ("Existing active Mastermind objectives:\n" + "\n".join([f"- {o}" for o in existing_objectives[:3]])) if existing_objectives else "No other active Mastermind objectives."
-
 
         prompt = (
             f"You are the strategic LLM for the MastermindAgent of MindX. Your current high-level directive is: '{high_level_directive}'.\n"
             f"Current MindX State Summary (from Coordinator):\n{mindx_state_summary_str}\n"
-            f"{existing_object_str}\n\n"
+            f"{existing_objectives_str}\n\n" # Corrected variable name
             f"Based on the directive and current state, and avoiding duplication with existing objectives, formulate a single, specific, and actionable STRATEGIC CAMPAIGN GOAL for the MindX system. "
             f"This goal should be achievable through a series of tactical code improvements, analyses, or new component developments over multiple cycles. "
             f"It should be a clear, concise string representing a desirable future state or capability. "
@@ -250,41 +258,42 @@ class MastermindAgent:
             f"Respond ONLY with a JSON object: {{\"formulated_campaign_goal\": \"Your strategic goal description.\"}}"
         )
         try:
-            response_str = await self.llm_handler.generate_text(prompt, max_tokens=self.config.get(f"mastermind_agent.{self.agent_id}.llm.max_tokens_goal_formulation", 400), temperature=0.4, json_mode=True)
-            parsed_response = {}; 
+            response_str = await self.llm_handler.generate_text(prompt, model=self.llm_handler.model_name_for_api, # Pass model explicitly
+                                                                max_tokens=self.config.get(f"mastermind_agent.{self.agent_id}.llm.max_tokens_goal_formulation", 400),
+                                                                temperature=0.4, json_mode=True)
+            if not response_str: return False, {"message": "LLM returned empty response for campaign goal."}
+            parsed_response = {};
             try: parsed_response = json.loads(response_str)
-            except json.JSONDecodeError: match = re.search(r"(\{[\s\S]*?\})", response_str, re.DOTALL); # Find first JSON object
-            if match: parsed_response = json.loads(match.group(1))
-            else: raise ValueError("LLM response for campaign goal not JSON.")
-            
+            except json.JSONDecodeError:
+                match = re.search(r"(\{[\s\S]*?\})", response_str, re.DOTALL);
+                if match: parsed_response = json.loads(match.group(1))
+                else: raise ValueError("LLM response for campaign goal not JSON and no JSON object found.")
+
             campaign_goal_desc = parsed_response.get("formulated_campaign_goal")
             if campaign_goal_desc and isinstance(campaign_goal_desc, str):
-                await self.bdi_agent.update_belief("current_formulated_campaign_goal_for_bdi", campaign_goal_desc) # For BDI internal use
-                return True, {"formulated_campaign_goal_description": campaign_goal_desc} # Return for plan param
-            return False, {"message": "LLM failed to formulate a valid campaign goal string."} # pragma: no cover
-        except Exception as e: return False, {"message": f"Error formulating campaign goal via LLM: {type(e).__name__}: {e}"} # pragma: no cover
+                await self.bdi_agent.update_belief("current_formulated_campaign_goal_for_bdi", campaign_goal_desc)
+                return True, {"formulated_campaign_goal_description": campaign_goal_desc}
+            return False, {"message": "LLM failed to formulate a valid campaign goal string from JSON."}
+        except Exception as e: return False, {"message": f"Error formulating campaign goal via LLM: {type(e).__name__}: {e}"}
+
 
     async def _bdi_action_launch_improvement_campaign(self, params: Dict[str, Any], **kwargs) -> Tuple[bool, Any]: # pragma: no cover
-        """This action tells the Coordinator to initiate a broad improvement effort based on the campaign_goal_description."""
-        campaign_goal_desc = params.get("campaign_goal_description") # This should be the output of FORMULATE_STRATEGIC_CAMPAIGN_GOAL
+        campaign_goal_desc = params.get("campaign_goal_description")
         if not campaign_goal_desc: campaign_goal_desc = await self.bdi_agent.get_belief("current_formulated_campaign_goal_for_bdi")
         if not campaign_goal_desc: return False, {"message": "No campaign goal description available to launch."}
-        if not self.coordinator_agent: return False, {"message":"Coordinator agent not available."} # pragma: no cover
+        if not self.coordinator_agent: return False, {"message":"Coordinator agent not available."}
 
         logger.info(f"{self.log_prefix} BDI Action: Requesting Coordinator to handle strategic campaign: '{campaign_goal_desc}'")
-        
-        # The Mastermind gives a high-level strategic goal. The Coordinator's SYSTEM_ANALYSIS
-        # will be focused by this goal, and its autonomous loop will pick up resulting suggestions.
-        # A more advanced Coordinator might have a dedicated "START_CAMPAIGN" InteractionType.
+
         interaction_meta = {
-            "source": self.agent_id, 
-            "mastermind_campaign_goal": campaign_goal_desc, # For Coordinator's context
+            "source": self.agent_id,
+            "mastermind_campaign_goal": campaign_goal_desc,
             "analysis_context": f"System-wide analysis focused on achieving Mastermind strategic goal: {campaign_goal_desc}",
             "analysis_depth": "strategic_campaign_kickoff"
         }
-        
+
         interaction = await self.coordinator_agent.create_interaction(
-            interaction_type=InteractionType.SYSTEM_ANALYSIS, # Use SYSTEM_ANALYSIS to populate Coord's backlog
+            interaction_type=InteractionType.SYSTEM_ANALYSIS,
             content=f"Mastermind directive: Initiate activities for campaign goal: {campaign_goal_desc}",
             agent_id=self.agent_id, metadata=interaction_meta
         )
@@ -293,27 +302,26 @@ class MastermindAgent:
         if processed_interaction.status == InteractionStatus.COMPLETED:
             mastermind_run_id = self._internal_state.get("current_run_id", "unknown_run")
             mastermind_campaign_id = f"mstr_camp_{mastermind_run_id}_{str(uuid.uuid4())[:6]}"
-            
+
             await self.bdi_agent.update_belief(f"mastermind_campaigns.{mastermind_campaign_id}.goal", campaign_goal_desc)
             await self.bdi_agent.update_belief(f"mastermind_campaigns.{mastermind_campaign_id}.status", "delegated_to_coordinator_analysis")
             await self.bdi_agent.update_belief(f"mastermind_campaigns.{mastermind_campaign_id}.coordinator_interaction_id", interaction.interaction_id)
-            
+
             logger.info(f"{self.log_prefix} Strategic campaign '{campaign_goal_desc}' (MCID: {mastermind_campaign_id}) analysis phase delegated to Coordinator via interaction {interaction.interaction_id}.")
             return True, {"mastermind_campaign_id": mastermind_campaign_id, "message": "Campaign analysis phase delegated to Coordinator."}
-        else: # pragma: no cover
+        else:
             err_msg = f"Failed to delegate campaign analysis to Coordinator. Error: {processed_interaction.error}"
             logger.error(f"{self.log_prefix} {err_msg}")
             return False, {"message": err_msg}
 
     async def _bdi_action_request_new_entity_identity(self, params: Dict[str, Any], **kwargs) -> Tuple[bool, Any]: # pragma: no cover
         if not self.id_manager_agent: return False, {"message": "IDManagerAgent not available to Mastermind."}
-        
+
         entity_tag = params.get("entity_tag", f"mindx_entity_{str(uuid.uuid4())[:6]}")
         entity_description = params.get("entity_description", "A new component or agent within MindX.")
         logger.info(f"{self.log_prefix} BDI Action: Requesting new identity from IDManager for entity tagged '{entity_tag}'.")
         try:
             public_address, _ = self.id_manager_agent.create_new_wallet(entity_id=entity_tag)
-            # Store this crucial info in Mastermind's BDI beliefs, namespaced for the entity
             belief_key_base = f"managed_entities.{entity_tag}"
             await self.bdi_agent.update_belief(f"{belief_key_base}.public_address", public_address)
             await self.bdi_agent.update_belief(f"{belief_key_base}.description", entity_description)
@@ -325,14 +333,12 @@ class MastermindAgent:
             return False, {"message": f"Identity creation failed: {type(e).__name__}: {e}"}
 
     async def _bdi_action_initiate_new_component_dev(self, params: Dict[str, Any], **kwargs) -> Tuple[bool, Any]: # pragma: no cover
-        """Conceptual: Task Coordinator/SEA to develop a new agent/component based on description and identity."""
         new_comp_desc = params.get("description", "A new utility agent for specialized data parsing.")
-        new_comp_identity_address = params.get("identity_public_address") # Should be output of previous action
+        new_comp_identity_address = params.get("identity_public_address")
         target_module_path_sugg = params.get("target_module_path", f"mindx.new_agents.{new_comp_desc.lower().replace(' ','_')[:20]}")
 
         logger.info(f"{self.log_prefix} BDI Action: Initiating development campaign for new component: {new_comp_desc}. Identity: {new_comp_identity_address or 'None provided'}. Target Path Suggestion: {target_module_path_sugg}")
-        
-        # This translates to a high-level strategic campaign goal for the Coordinator.
+
         campaign_goal_for_new_dev = (
             f"Spearhead the development and integration of a new MindX component. "
             f"Description: '{new_comp_desc}'. "
@@ -341,33 +347,35 @@ class MastermindAgent:
             f"This campaign will likely involve: detailed specification, code generation by SIA over multiple iterations for the initial file(s), "
             f"creation of basic unit tests, and initial registration with the system if applicable."
         )
-        # Use the existing launch campaign BDI action to delegate this to Coordinator
         return await self._bdi_action_launch_improvement_campaign({"campaign_goal_description": campaign_goal_for_new_dev})
 
 
     async def _bdi_action_review_campaign_outcomes(self, params: Dict[str, Any], **kwargs) -> Tuple[bool, Any]: # pragma: no cover
-        # (Full logic from previous Mastermind, ensuring it uses its own LLM)
+        if not self.llm_handler: return False, {"message": "Mastermind LLM handler not initialized."}
         campaign_id_to_review = params.get("campaign_id") or await self.bdi_agent.get_belief("last_launched_mastermind_campaign_id")
         if not campaign_id_to_review: return False, {"message": "No campaign_id provided for review."}
         logger.info(f"{self.log_prefix} BDI Action: Reviewing outcomes for Mastermind campaign ID '{campaign_id_to_review}'.")
         campaign_data_list = [c for c in self.strategic_campaigns_history if c.get("mastermind_run_id") == campaign_id_to_review or c.get("mastermind_campaign_id") == campaign_id_to_review]
         if not campaign_data_list: return False, {"message": f"No data for Mastermind campaign ID '{campaign_id_to_review}'."}
-        campaign_data = campaign_data_list[0] 
+        campaign_data = campaign_data_list[0]
         original_goal = campaign_data.get("directive", campaign_data.get("campaign_goal", "N/A"))
         bdi_outcome_msg = campaign_data.get("bdi_outcome_message", "N/A"); bdi_final_status = campaign_data.get("bdi_final_status", "N/A")
-        # In future, this action could query Coordinator for more detailed tactical outcomes linked to this campaign.
         prompt = (f"Review MindX improvement campaign outcome.\nOriginal Goal: {original_goal}\n"
                   f"Internal BDI Status: {bdi_final_status}\nBDI Outcome Msg: {bdi_outcome_msg}\n"
                   f"Assess if campaign broadly met strategic objective. Respond ONLY JSON: "
                   f"{{\"campaign_objective_met\": bool, \"assessment_summary\": \"brief overall assessment\", \"suggested_follow_up\": \"string (e.g., 'Monitor', 'New campaign for X', 'Mark achieved')\"}}")
         try:
-            response_str = await self.llm_handler.generate_text(prompt, max_tokens=400, temperature=0.1, json_mode=True)
-            parsed_assessment = {}; # Placeholder for robust JSON parsing
+            response_str = await self.llm_handler.generate_text(prompt, model=self.llm_handler.model_name_for_api, # Pass model explicitly
+                                                                max_tokens=400, temperature=0.1, json_mode=True)
+            if not response_str: return False, {"message": "LLM returned empty response for campaign review."}
+            parsed_assessment = {};
             try: parsed_assessment = json.loads(response_str)
-            except: match = re.search(r"(\{[\s\S]*?\})", response_str, re.DOTALL);
-            if match: parsed_assessment = json.loads(match.group(1))
-            else: raise ValueError("LLM review response not JSON.")
-            if not isinstance(parsed_assessment, dict) or not all(k in parsed_assessment for k in ["campaign_objective_met", "assessment_summary", "suggested_follow_up"]): raise ValueError("LLM review missing keys.")
+            except:
+                match = re.search(r"(\{[\s\S]*?\})", response_str, re.DOTALL);
+                if match: parsed_assessment = json.loads(match.group(1))
+                else: raise ValueError("LLM review response not JSON and no JSON object found.")
+            if not isinstance(parsed_assessment, dict) or not all(k in parsed_assessment for k in ["campaign_objective_met", "assessment_summary", "suggested_follow_up"]):
+                raise ValueError("LLM review missing required keys.")
             await self.bdi_agent.update_belief(f"mastermind_campaign_review.{campaign_id_to_review}", parsed_assessment)
             return True, parsed_assessment
         except Exception as e: return False, {"message": f"LLM campaign review failed: {type(e).__name__}: {e}"}
@@ -375,29 +383,37 @@ class MastermindAgent:
 
     # --- Main Mastermind Orchestration Method & Autonomous Loop ---
     async def manage_mindx_evolution(self, top_level_directive: str, max_mastermind_bdi_cycles: int = 15) -> Dict[str, Any]: # pragma: no cover
-        """Primary entry point for Mastermind to act on a high-level directive using its internal BDI agent."""
+        if not self._initialized_async: # Ensure async components are ready
+            logger.warning(f"{self.log_prefix} Mastermind async components not yet initialized. Attempting now.")
+            await self._async_init_components() # Should have been called by factory, but as a safeguard.
+            if not self._initialized_async:
+                return {"error": "Mastermind not fully initialized.", "overall_campaign_status": "FAILURE_OR_INCOMPLETE"}
+
+
         self._internal_state["current_run_id"] = f"mastermind_run_{str(uuid.uuid4())[:8]}"
         run_id = self._internal_state["current_run_id"]
         logger.info(f"{self.log_prefix} Starting MindX evolution campaign (Run ID: {run_id}). Directive: '{top_level_directive}'")
-        await self.update_belief(f"mastermind.current_campaign.directive", top_level_directive, 0.99, BeliefSource.EXTERNAL_INPUT, is_internal_state=True)
-        await self.update_belief(f"mastermind.current_campaign.run_id", run_id, 0.99, BeliefSource.SELF_ANALYSIS, is_internal_state=True)
+        
+        # Using BDI agent's belief system for these states now
+        await self.bdi_agent.update_belief(f"mastermind.current_campaign.directive", top_level_directive, 0.99, BeliefSource.EXTERNAL_INPUT)
+        await self.bdi_agent.update_belief(f"mastermind.current_campaign.run_id", run_id, 0.99, BeliefSource.SELF_ANALYSIS)
 
-        # Add this directive as a high-level objective if not already present and active
+
         existing_objective = next((obj for obj in self.high_level_objectives if obj.get("directive") == top_level_directive and obj.get("status") == "active"), None)
         if not existing_objective:
             objective_id = str(uuid.uuid4())[:8]
             self.high_level_objectives.append({"id": objective_id, "directive": top_level_directive, "status": "active", "created_at": time.time(), "run_ids": [run_id]})
             self._save_json_file("mastermind_objectives.json", self.high_level_objectives)
-        elif run_id not in existing_objective.get("run_ids",[]): # pragma: no cover
-            existing_objective.setdefault("run_ids",[]).append(run_id) # Add current run to existing active objective
+        elif run_id not in existing_objective.get("run_ids",[]):
+            existing_objective.setdefault("run_ids",[]).append(run_id)
             self._save_json_file("mastermind_objectives.json", self.high_level_objectives)
 
 
         self.bdi_agent.set_goal( goal_description=f"Strategically fulfill Mastermind directive: {top_level_directive}", priority=1, is_primary=True, goal_id=f"mastermind_directive_{run_id}" )
-        
+
         bdi_final_run_message = await self.bdi_agent.run(max_cycles=max_mastermind_bdi_cycles)
         bdi_final_agent_status = self.bdi_agent._internal_state["status"]
-        campaign_successful = (bdi_final_agent_status == "COMPLETED_GOAL_ACHIEVED")
+        campaign_successful = (bdi_final_agent_status == BDIGoalStatus.ACHIEVED.value) # Use enum value for comparison
 
         campaign_outcome_summary = {
             "mastermind_run_id": run_id, "agent_id": self.agent_id, "directive": top_level_directive,
@@ -406,17 +422,16 @@ class MastermindAgent:
             "timestamp": time.time() }
         self.strategic_campaigns_history.append(campaign_outcome_summary)
         self._save_json_file("mastermind_campaigns_history.json", self.strategic_campaigns_history)
-        
-        # Update objective status
+
         for obj in self.high_level_objectives:
             if obj.get("directive") == top_level_directive and obj.get("status") == "active":
-                obj["status"] = "completed_attempt" if campaign_successful else "failed_attempt"
+                obj["status"] = "completed_attempt" if campaign_successful else "failed_attempt" # Simplified status
                 obj["last_run_id"] = run_id
                 obj["last_run_status"] = campaign_outcome_summary['overall_campaign_status']
                 break
         self._save_json_file("mastermind_objectives.json", self.high_level_objectives)
 
-        await self.update_belief(f"mastermind.campaign_history.{run_id}", campaign_outcome_summary, 0.95, BeliefSource.SELF_ANALYSIS)
+        await self.bdi_agent.update_belief(f"mastermind.campaign_history.{run_id}", campaign_outcome_summary, 0.95, BeliefSource.SELF_ANALYSIS)
         logger.info(f"{self.log_prefix} MindX evolution campaign (Run ID: {run_id}) finished. BDI Status: {bdi_final_agent_status}. Overall Campaign: {campaign_outcome_summary['overall_campaign_status']}")
         return campaign_outcome_summary
 
@@ -434,11 +449,21 @@ class MastermindAgent:
         logger.info(f"{self.log_prefix} Mastermind autonomous worker started with directive: '{default_directive[:100]}...'")
         while True:
             try:
+                # Ensure async components are ready before each autonomous cycle
+                if not self._initialized_async:
+                    logger.info(f"{self.log_prefix} Autonomous worker: Waiting for async initialization...")
+                    await self._async_init_components() # Should already be done, but good check
+                    if not self._initialized_async:
+                        logger.error(f"{self.log_prefix} Autonomous worker: Async init failed. Skipping cycle.")
+                        await asyncio.sleep(interval) # Wait before retrying init/cycle
+                        continue
+
+                logger.info(f"{self.log_prefix} Autonomous worker: Starting sleep interval of {interval}s.")
                 await asyncio.sleep(interval)
                 logger.info(f"{self.log_prefix} Autonomous worker: Initiating new strategic campaign with default directive.")
                 await self.manage_mindx_evolution(default_directive, max_mastermind_bdi_cycles=max_bdi_cycles)
             except asyncio.CancelledError: logger.info(f"{self.log_prefix} Mastermind autonomous worker stopping."); break
-            except Exception as e: logger.error(f"{self.log_prefix} Mastermind autonomous worker error: {e}", exc_info=True); await asyncio.sleep(interval) # Wait before retry
+            except Exception as e: logger.error(f"{self.log_prefix} Mastermind autonomous worker error: {e}", exc_info=True); await asyncio.sleep(interval)
         logger.info(f"{self.log_prefix} Mastermind autonomous worker has stopped.")
 
     async def shutdown(self): # pragma: no cover
@@ -451,15 +476,19 @@ class MastermindAgent:
         if self.id_manager_agent and hasattr(self.id_manager_agent, 'shutdown'):
             shutdown_method = self.id_manager_agent.shutdown
             if asyncio.iscoroutinefunction(shutdown_method): await shutdown_method()
-            elif callable(shutdown_method): shutdown_method() # type: ignore
+            elif callable(shutdown_method): shutdown_method()
         self._save_json_file("mastermind_campaigns_history.json", self.strategic_campaigns_history)
         self._save_json_file("mastermind_objectives.json", self.high_level_objectives)
         logger.info(f"MastermindAgent '{self.agent_id}' shutdown complete.")
 
     @classmethod
-    async def reset_all_instances_for_testing(cls): # pragma: no cover
-        """Resets all cached Mastermind instances. Primarily for testing."""
+    async def reset_singleton_instance_for_testing(cls): # pragma: no cover
+        """Resets the singleton Mastermind instance. Primarily for testing."""
         async with cls._lock:
-            for instance in list(cls._instances.values()): await instance.shutdown()
-            cls._instances.clear()
-        logger.debug("All MastermindAgent instances reset.")
+            if cls._instance:
+                logger.debug(f"Resetting MastermindAgent singleton instance '{cls._instance.agent_id}' for testing.")
+                await cls._instance.shutdown()
+                cls._instance = None
+            else:
+                logger.debug("No active MastermindAgent singleton instance to reset.")
+        logger.debug("MastermindAgent singleton reset.")
