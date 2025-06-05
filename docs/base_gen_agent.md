@@ -1,4 +1,5 @@
 # BaseGenAgent (`base_gen_agent.py`) - Configurable Codebase Documenter
+optimized in markdown for LLM ingestion
 see mindX/tools/base_gen_agent.py
 
 ## Introduction
