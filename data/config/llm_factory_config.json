@@ -1,0 +1,50 @@
+{
+  "comment": "LLMFactory specific configurations. Values here can override broader llm.* settings from global Config for factory's decisions ONLY WHEN factory is resolving its parameters. Handlers themselves will use global Config unless parameters are passed explicitly to create_llm_handler.",
+  "default_provider_preference_order": [
+    "groq",
+    "gemini", 
+    "ollama", 
+    "anthropic", 
+    "openai",
+    "mock"
+  ],
+  "ollama_settings_for_factory": {
+    "comment": "If 'default_model_override' is set, factory uses this for Ollama IF no model is passed to create_llm_handler AND global 'llm.ollama.default_model' is also not set or this takes precedence.",
+    "default_model_override": null, 
+    "base_url_override": null,
+    "cloud_run_friendly_models": {
+        "comment_cloud_run": "This section can define or override the Python OLLAMA_CLOUD_RUN_MODELS_PY constant.",
+        "excellent_fit": [
+            {"id": "phi3_json_cfg", "ollama_name": "phi3:mini-instruct-4k-fp16", "type": "general/reasoning", "est_memory_needed_gb": 4, "notes": "From JSON: Microsoft Phi-3 Mini Instruct (fp16 for balance)."},
+            {"id": "gemma2b_json_cfg", "ollama_name": "gemma:2b-instruct-fp16", "type": "general", "est_memory_needed_gb": 3, "notes": "From JSON: Google's 2B open model (fp16)."},
+            {"id": "codegemma2b_json_cfg", "ollama_name": "codegemma:2b", "type": "coding", "est_memory_needed_gb": 3, "notes": "From JSON: Google's 2B code model."}
+        ],
+        "good_fit": [
+            {"id": "codegemma7b_json_cfg", "ollama_name": "codegemma:7b-it", "type": "coding", "est_memory_needed_gb": 8, "notes": "From JSON: Google's 7B code model, instruction tuned."}
+        ],
+        "default_coding_preference_order": ["codegemma7b_json_cfg", "codegemma2b_json_cfg", "phi3_json_cfg"],
+        "default_general_preference_order": ["phi3_json_cfg", "gemma2b_json_cfg", "llama3_8b_py"] 
+    }
+  },
+  "gemini_settings_for_factory": {
+    "default_model_override": "gemini-1.5-flash-latest",
+    "api_key_override": null
+  },
+  "groq_settings_for_factory": {
+    "comment": "Groq models are specified by their API identifier.",
+    "default_model_override": "llama3-8b-8192",  
+    "api_key_override": null 
+  },
+  "provider_specific_handler_config": {
+    "comment": "This tells the factory what 'model_name_for_api' to pass to the Handler's constructor if no specific model was resolved via args or other configs. This is the model the *handler instance* will use by default if generate_text is called without a model override.",
+    "ollama": {
+        "default_model_for_api_call": "nous-hermes2:latest" 
+    },
+    "gemini": {
+        "default_model_for_api_call": "gemini-1.0-pro" 
+    },
+    "groq": {
+        "default_model_for_api_call": "llama3-8b-8192" 
+    }
+  }
+}
