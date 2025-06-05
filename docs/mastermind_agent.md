@@ -2,21 +2,21 @@
 
 ## Introduction
 
-The `MastermindAgent` is designed as the apex strategic entity within the MindX system, an Augmentic Project initiative. Its purpose is to oversee the long-term evolution, set overarching system goals, and direct meta-level self-improvement of the entire MindX ecosystem. It achieves this by:
+The `MastermindAgent` is designed as the apex strategic entity within the mindX Augmentic Project initiative. Its purpose is to oversee the long-term evolution, set overarching system goals, and direct meta-level self-improvement of the entire mindX ecosystem. It achieves this by:
 
 -   Employing its own internal `BDIAgent` for strategic planning and campaign execution.
 -   Interacting with the `CoordinatorAgent` to gather system-wide intelligence and to delegate the execution of tactical improvement campaigns (which are ultimately handled by the `SelfImprovementAgent` CLI).
--   Utilizing an `IDManagerAgent` for provisioning secure cryptographic identities, envisioning a future where MindX can autonomously design and instantiate new agents or tools.
+-   Utilizing an `IDManagerAgent` for provisioning secure cryptographic identities, envisioning a future where mindX will autonomously design and instantiate new agents or tools.
 -   Operating an autonomous loop to periodically reassess system state and initiate new strategic directives.
 
 ## Explanation
 
 ### Core Responsibilities & Workflow
 
-1.  **Singleton with Named Instances (`get_instance`):**
+  **Singleton with Named Instances (`get_instance`):**
     *   An asynchronous factory method `get_instance(agent_id: str, ...)` allows for creating or retrieving uniquely named `MastermindAgent` instances. This supports scenarios with multiple Masterminds or for testing. Instances are cached. `reset_all_instances_for_testing()` is provided.
 
-2.  **Initialization (`__init__`):**
+  **Initialization (`__init__`):**
     *   Requires an `agent_id`, a reference to the shared `BeliefSystem`, and a crucial reference to the main `CoordinatorAgent`.
     *   Establishes a dedicated data directory (e.g., `PROJECT_ROOT/data/mastermind_work/<sanitized_agent_id>/`) for its persistent state, including `mastermind_campaigns_history.json` and `mastermind_objectives.json`.
     *   Initializes its own `LLMHandler` for high-level strategic reasoning, configured via `mastermind_agent.<agent_id>.llm.*` settings in `Config`.
@@ -25,14 +25,14 @@ The `MastermindAgent` is designed as the apex strategic entity within the MindX 
     *   **`IDManagerAgent`:** Instantiates or gets an `IDManagerAgent` instance. This is used when a strategic plan involves the conceptual creation of a new agent or tool that requires a secure, verifiable identity.
     *   **Autonomous Loop:** If enabled in config (`mastermind_agent.<agent_id>.autonomous_loop.enabled`), it starts an asynchronous background task (`_mastermind_autonomous_worker`) to periodically initiate new strategic campaigns.
 
-3.  **Main Orchestration Method (`manage_mindx_evolution`):**
+  **Main Orchestration Method (`manage_mindx_evolution`):**
     *   This is the primary public method for tasking the `MastermindAgent`. It takes a `top_level_directive` (e.g., "Improve overall system fault tolerance by 15%") and `max_mastermind_bdi_cycles`.
     *   It assigns a unique `run_id` for this campaign.
     *   It sets this directive as the primary, high-priority goal for its internal `BDIAgent`.
     *   It then executes `self.bdi_agent.run()`. The BDI agent's plan, composed of the custom strategic actions, will drive the campaign.
     *   The final outcome of the BDI agent's run (summarizing the campaign's success, failure, or status) is logged to `strategic_campaigns_history` and returned. High-level objectives in `mastermind_objectives.json` are also updated.
 
-4.  **Mastermind's Internal BDI Action Handlers (`_bdi_action_*` methods):**
+  **Mastermind's Internal BDI Action Handlers (`_bdi_action_*` methods):**
     These are the high-level strategic actions executed by Mastermind's BDI agent:
     *   **`_bdi_action_observe_mindx_state(params)`**:
         -   Queries the `CoordinatorAgent` (by initiating a `SYSTEM_ANALYSIS` interaction with it, focused by `params.analysis_focus`) to get a summary of current MindX system health, performance metrics, and the state of the Coordinator's improvement backlog.
@@ -59,7 +59,7 @@ The `MastermindAgent` is designed as the apex strategic entity within the MindX 
         -   Uses `self.llm_handler` to assess whether the campaign broadly met its original strategic objective based on the BDI outcome messages and status.
         -   Updates BDI beliefs with this assessment, which can inform future strategic decisions.
 
-5.  **Autonomous Loop (`_mastermind_autonomous_worker`):**
+  **Autonomous Loop (`_mastermind_autonomous_worker`):**
     *   If enabled in config, this `asyncio.Task` runs periodically (e.g., every few hours).
     *   In each cycle, it typically calls `self.manage_mindx_evolution()` with a default, broad, proactive directive (e.g., "Proactively monitor and strategically enhance overall MindX system health, capabilities, and efficiency...").
 
@@ -92,7 +92,7 @@ The `MastermindAgent` is designed as the apex strategic entity within the MindX 
 
 The `MastermindAgent` is the apex controller, designed for setting long-term evolutionary paths for MindX.
 
-1.  **Initialization (Typically once at main application startup):**
+  **Initialization (Typically once at main application startup):**
     ```python
     # In main_app.py or similar
     # ... initialize Config, BeliefSystem ...
@@ -105,7 +105,7 @@ The `MastermindAgent` is the apex controller, designed for setting long-term evo
     # )
     ```
 
-2.  **Tasking the Mastermind (e.g., from an admin interface or diagnostic event):**
+  **Tasking the Mastermind (e.g., from an admin interface or diagnostic event):**
     ```python
     # await mastermind.manage_mindx_evolution(
     #     top_level_directive="Expand MindX's capabilities to include automated documentation generation for all new modules.",
@@ -113,7 +113,7 @@ The `MastermindAgent` is the apex controller, designed for setting long-term evo
     # )
     ```
 
-3.  **Autonomous Operation:**
+  **Autonomous Operation:**
     If configured with `mastermind_agent.<agent_id>.autonomous_loop.enabled = true` in `.env` or `mindx_config.json`, the Mastermind will periodically initiate campaigns based on its default directive.
 
 The `MastermindAgent` represents a significant step towards a more fully autonomous and strategically evolving AI system. Its effectiveness hinges on the quality of its LLM-driven strategic formulation and the capabilities of the agents it orchestrates.
