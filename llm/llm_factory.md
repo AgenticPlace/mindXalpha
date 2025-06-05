@@ -4,7 +4,7 @@ mindX/data/config/llm_factory_config.json<br />
 
 ## Introduction
 
-This module is the cornerstone of MindX's interactions with various Large Language Models (LLMs). It defines a common interface for LLM operations and provides a factory function to create and manage specific LLM provider handlers. This version (v4) emphasizes modularity by expecting concrete handlers (like `OllamaHandler`, `GeminiHandler`, `GroqHandler`) to reside in their own separate files within the `mindx/llm` package. It continues to support an external JSON configuration file (`llm_factory_config.json`) for fine-grained control over factory behavior and model preferences, including defaults suitable for environments like Google Cloud Run.
+llm_factory module is the cornerstone of mindX's interactions with various Large Language Models (LLMs) defining a common interface for LLM operations providing a factory function to create and manage specific LLM provider handlers. This version (v4) emphasizes modularity by expecting concrete handlers (like `OllamaHandler`, `GeminiHandler`, `GroqHandler`) to reside in their own separate files within the `mindx/llm` package. It continues to support an external JSON configuration file (`mindX/data/config/llm_factory_config.json`) for fine-grained control over factory behavior and model preferences, including defaults suitable for environments like Google Cloud Run.
 
 ## Explanation
 
