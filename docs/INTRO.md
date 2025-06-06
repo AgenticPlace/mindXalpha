@@ -83,4 +83,5 @@ mindX, as a "production release candidate" for its core self-improvement loop, i
 
 <a href="https://richardcsuwandi.github.io/blog/2025/dgm/">Darwin-Gödel Machine deep dive</a><br />
 <a href="https://arxiv.org/abs/2505.22954">Darwin Godel Machine: Open-Ended Evolution of Self-Improving Agents<br />
-<a href="https://github.com/AIONMCP/dgm/">DGM source code</a>
+<a href="https://github.com/AIONMCP/dgm/">DGM benchmark testing source code</a><br />
+<a href="https://github.com/agenticplace/mindX">mindX Augmentic Intelligence</a>
