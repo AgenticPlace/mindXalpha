@@ -19,7 +19,7 @@ These early visions, historically theoretical, highlighted a fundamental potenti
 
 The rise of Large Language Models (LLMs) presents a paradigm shift. For the first time, we have systems that possess a remarkable, if imperfect, understanding of human language and, by extension, programming languages which are a formal subset of language. LLMs can read code, write code, explain code, and even reason about code's purpose and potential flaws. This provides a powerful new toolkit to revisit the challenge of a self-improving Augmentic Intelligence.
 
-## The Darwin-Gödel Inspiration for MindX
+## The Darwin-Gödel Inspiration for mindX
 
 mindX draws its core philosophical inspiration from two powerful, seemingly disparate concepts: Darwinian evolution and Gödelian self-reference.
 
