@@ -1,4 +1,4 @@
-# MindX System - Technical Deep Dive (Augmentic Project)
+# mindX System - Technical Deep Dive (Augmentic Intelligence Project)
 
 ##  Core Architecture
 
