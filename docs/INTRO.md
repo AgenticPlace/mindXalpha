@@ -35,11 +35,11 @@ mindX draws its core philosophical inspiration from two powerful, seemingly disp
 ** Gödelian Self-Reference & Provable Improvement (Relaxed):**
    Kurt Gödel's work on incompleteness theorems touched upon the limits of formal systems and self-reference. Jürgen Schmidhuber's theoretical "Gödel Machine" proposed an AI that could provably improve itself by rewriting its own code if it could first prove that a rewrite would be beneficial according to its utility function.
    -   **The Challenge:** For most non-trivial AI systems, formally *proving* that a code modification will be beneficial is practically impossible due to the complexity of the system, its interaction with the environment, and the difficulty of formalizing "benefit."
-   -   **MindX's Adaptation:** MindX relaxes the "provably beneficial" requirement. Instead of formal proof, it relies on the **empirical evidence** gathered during the SIA's evaluation phase (syntax, tests, critique). A change is deemed "beneficial enough to try promoting" if it passes these empirical hurdles. This is a pragmatic compromise, acknowledging that absolute proof is often out of reach, but empirical validation provides a strong signal. The "provable" aspect is softened to "demonstrably better according to an evaluation suite."
+   -   **mindX's Adaptation:** MindX relaxes the "provably beneficial" requirement. Instead of formal proof, it relies on the **empirical evidence** gathered during the SIA's evaluation phase (syntax, tests, critique). A change is deemed "beneficial enough to try promoting" if it passes these empirical hurdles. This is a pragmatic compromise, acknowledging that absolute proof is often out of reach, but empirical validation provides a strong signal. The "provable" aspect is softened to "demonstrably better according to an evaluation suite."
 
 By combining these, MindX aims for an **evolutionary process of self-improvement**, where new versions are generated and empirically tested. The "fittest" (i.e., successfully evaluated and, for self-updates, self-tested) modifications are incorporated, allowing the system to iteratively enhance itself.
 
-## MindX: A Release Candidate for Self-Improvement
+## mindX: A Release Candidate for Self-Improvement
 
 The current state of the MindX codebase represents a **production release candidate for its core self-improvement loop and strategic management layers.** This means:
 
