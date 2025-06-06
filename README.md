@@ -162,36 +162,35 @@ The primary interface is the Coordinator's CLI:
 
 ```bash
 python scripts/run_mindx_coordinator.py
-Use code with caution.
-Once the MindX CLI > prompt appears, you can interact with the system:
-Get Help: help
-Query: query What is the primary goal of the SelfImprovementAgent?
-System Analysis: analyze_system Focus on improving the LLM prompt quality for code generation.
-View Improvement Backlog: backlog
-Approve/Reject Critical Backlog Item (get ID from backlog command):
-approve goal_abc123xyz
-reject goal_def456uvw
-Use code with caution.
-Manually Trigger Backlog Processing: process_backlog (attempts highest priority actionable item)
-Directly Request Component Improvement:
-improve mindx.utils.config Add validation for LLM provider names.
-improve self_improve_agent_cli_mindx Make the self-test suite more comprehensive.
-Use code with caution.
-Exit: quit or exit
-If MINDX_COORDINATOR__AUTONOMOUS_IMPROVEMENT__ENABLED="true" in your .env, the Coordinator will periodically run its analysis and improvement cycle in the background.
-Current Status & Limitations
-Core Self-Improvement Loop: The strategic (StrategicEvolutionAgent conceptually, driven by CoordinatorAgent's autonomous loop) and tactical (SelfImprovementAgent CLI) layers for identifying, planning (LLM-based), executing, and evaluating single-file Python code changes are functional.
-Safety Mechanisms: SIA's iteration directories, self-tests for its own code, backups, and critique thresholds provide a good level of safety for automated code changes. HITL in Coordinator for critical targets adds another layer.
-LLM Dependency: The quality of analysis, planning, code generation, and critique is heavily dependent on the capabilities of the configured LLMs and the quality of prompt engineering.
-Evaluation Limitations: Current SIA evaluation relies on syntax checks, custom self-tests (for SIA itself), and LLM critique. It lacks integration with broader unit/integration test suites for arbitrary target files or performance benchmark execution.
-System Restart for Critical Updates: If the SIA or CoordinatorAgent updates its own code, the running Python process uses the old code. A manual or external-supervisor-triggered restart is required for these changes to take effect. The system logs warnings and sets beliefs when this is needed.
-Peripheral Agent Functionality: Components like MultiModelAgent, ModelSelector, BDIAgent (as a general-purpose component beyond SEA's internal one), and DocumentationAgent are currently functional stubs. Their full implementation would be needed for a truly comprehensive MindX system.
-Complex Multi-File Refactoring: The current SIA is designed to operate on one file at a time. Large-scale refactoring across multiple files is not yet supported.
-Future Directions
-Enhanced Evaluation: Integrate SIA with project-specific unit/integration test frameworks and static analysis tools.
-Full Peripheral Agent Implementation: Develop MultiModelAgent, ModelSelector, BDIAgent, and DocumentationAgent into fully capable components.
-Advanced Strategic Reasoning (SEA): Improve the StrategicEvolutionAgent's ability to learn from campaign outcomes, manage resources for improvement tasks, and perform more complex long-term planning.
+```
+Once the MindX CLI > prompt appears, you can interact with the system:<br /><br />
+Get Help: help<br /><br />
+Query: query What is the primary goal of the SelfImprovementAgent?<br /><br />
+System Analysis: analyze_system Focus on improving the LLM prompt quality for code generation<br /><br />
+View Improvement Backlog: backlog<br /><br />
+Approve/Reject Critical Backlog Item (get ID from backlog command):<br /><br />
+approve goal_abc123xyz<br /><br />
+reject goal_def456uvw<br /><br />
+Manually Trigger Backlog Processing: process_backlog (attempts highest priority actionable item)<br /><br />
+Directly Request Component Improvement:<br /><br />
+improve mindx.utils.config Add validation for LLM provider names<br /><br />
+improve self_improve_agent_cli_mindx Make the self-test suite more comprehensive<br /><br />
+Exit: quit or exit<br /><br />
+If MINDX_COORDINATOR__AUTONOMOUS_IMPROVEMENT__ENABLED="true" in your .env, the Coordinator will periodically run its analysis and improvement cycle in the background<br /><br />
+# Current Status & Limitations
+Core Self-Improvement Loop: The strategic (StrategicEvolutionAgent conceptually, driven by CoordinatorAgent's autonomous loop) and tactical <br /><br />(SelfImprovementAgent CLI) layers for identifying, planning (LLM-based), executing, and evaluating single-file Python code changes are functional<br /><br />
+Safety Mechanisms: SIA's iteration directories, self-tests for its own code, backups, and critique thresholds provide a good level of safety for automated code changes. HITL in Coordinator for critical targets adds another layer<br /><br />
+LLM Dependency: The quality of analysis, planning, code generation, and critique is heavily dependent on the capabilities of the configured LLMs and the quality of prompt engineering<br /><br />
+Evaluation Limitations: Current SIA evaluation relies on syntax checks, custom self-tests (for SIA itself), and LLM critique. It lacks integration with broader unit/integration test suites for arbitrary target files or performance benchmark execution<br /><br />
+System Restart for Critical Updates: If the SIA or CoordinatorAgent updates its own code, the running Python process uses the old code. A manual or external-supervisor-triggered restart is required for these changes to take effect. The system logs warnings and sets beliefs when this is needed<br /><br />
+Peripheral Agent Functionality: Components like MultiModelAgent, ModelSelector, BDIAgent (as a general-purpose component beyond SEA's internal one), and DocumentationAgent are currently functional stubs. Their full implementation would be needed for a truly comprehensive MindX system<br /><br />
+Complex Multi-File Refactoring: The current SIA is designed to operate on one file at a time. Large-scale refactoring across multiple files is not yet supported<br /><br />
+# Future Directions
+Enhanced Evaluation: Integrate SIA with project-specific unit/integration test frameworks and static analysis tools<br /><br />
+Full Peripheral Agent Implementation: Develop MultiModelAgent, ModelSelector, BDIAgent, and DocumentationAgent into fully capable components<br /><br />
+Advanced Strategic Reasoning (SEA): Improve the StrategicEvolutionAgent's ability to learn from campaign outcomes, manage resources for improvement tasks, and perform more complex long-term planning<br /><br />
 Automated System Restart/Reload: Investigate mechanisms for safer dynamic updates or controlled restarts after critical self-modifications.
-Broader Scope of Improvement: Extend self-improvement capabilities to other types of system artifacts (e.g., configuration files, documentation, CI/CD pipelines).
-User Interface: Develop a web UI or more sophisticated CLI for interacting with MindX, managing the backlog, and observing system state.
-This README provides a snapshot of the Augmentic MindX project, focusing on its self-improvement capabilities. It's an ongoing experiment in building more autonomous and adaptive AI systems.
+Broader Scope of Improvement: Extend self-improvement capabilities to other types of system artifacts (e.g., configuration files, documentation, CI/CD pipelines)<br /><br />
+User Interface: Develop a web UI or more sophisticated CLI for interacting with MindX, managing the backlog, and observing system state<br /><br />
+mindX Augmentic Intelligence<br /><br />
+an ongoing experiment to deploy a self improving autonomous and adaptive AI system
