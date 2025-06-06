@@ -4,7 +4,7 @@
 
 ## Overview
 
-**mindX** is an experimental AI system developed under the conceptual "Augmentic Project." Its central design philosophy is **autonomous self-improvement**. MindX aims to analyze its own Python codebase, identify areas for enhancement, generate solutions using Large Language Models (LLMs), and apply these improvements safely, thereby evolving its capabilities over time. This project draws inspiration from concepts like the Darwin Gödel Machine, emphasizing empirical validation of changes and maintaining a history of its evolution.
+**mindX** is an experimental AI system developed under the conceptual "Augmentic Project." Its central design philosophy is **autonomous self-improvement**. mindX uses mastermind_agent.py to analyze its own Python codebase, identify areas for enhancement, generate solutions using Large Language Models (LLMs), and apply these improvements safely, thereby evolving its capabilities over time. mindX draws inspiration from concepts including the Darwin Gödel Machine, emphasizing empirical validation of changes and maintaining a history of its evolution.
 
 The system is architected around a suite of interacting Python agents and modules:
 
@@ -116,25 +116,28 @@ augmentic_mindx/
 
 ### Installation
 
-1.  **Clone Repository:** If applicable.
-2.  **Create Virtual Environment:**
+  **Clone Repository:** If applicable.
+  **Create Virtual Environment:**
     ```bash
-    python3 -m venv .venv
-    source .venv/bin/activate  # Linux/macOS
-    # .venv\Scripts\activate   # Windows
+    python3 -m venv mindX
+    source mindX/bin/activate  # Linux/macOS
+    # mindX\Scripts\activate   # Windows
     ```
-3.  **Install Dependencies:**
+  **Install Dependencies:**
     The `pyproject.toml` lists dependencies.
     ```bash
     pip install -e .[dev] 
     # Installs MindX in editable mode with development dependencies (like pytest, ruff)
     # Or, for runtime only: pip install .
     ```
+    ```bash
+    pip install -r requirements.txt
+    ```
     This will install packages like `psutil`, `python-dotenv`, `PyYAML`, `ollama`, `google-generativeai`.
 
 ### Configuration
 
-1.  **Create `.env` file:** In the project root (`augmentic_mindx/`), create a `.env` file. You can copy `.env.example` if one is provided. This file is for secrets like API keys and local overrides. **It should be in `.gitignore`.**
+  **Create `.env` file:** In the project root (`augmentic_mindx/`), create a `.env` file. You can copy `.env.example` if one is provided. This file is for secrets like API keys and local overrides. **It should be in `.gitignore`.**
     Example `.env` content:
     ```env
     MINDX_LOG_LEVEL="INFO" # Or DEBUG for more verbosity
@@ -151,7 +154,7 @@ augmentic_mindx/
     MINDX_COORDINATOR__AUTONOMOUS_IMPROVEMENT__ENABLED="false" # Start with false
     MINDX_COORDINATOR__AUTONOMOUS_IMPROVEMENT__REQUIRE_HUMAN_APPROVAL_FOR_CRITICAL="true"
     ```
-2.  **(Optional) `mindx_config.json`:** For non-sensitive, shared default configurations, you can create `mindx_config.json` in the project root or `data/config/`. Settings in `.env` or actual environment variables (prefixed with `MINDX_`) will override `mindx_config.json`.
+  **(Optional) `mindx_config.json`:** For non-sensitive, shared default configurations, you can create `mindx_config.json` in the project root or `data/config/`. Settings in `.env` or actual environment variables (prefixed with `MINDX_`) will override `mindx_config.json`.
 
 ### Running MindX
 
