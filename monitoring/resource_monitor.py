@@ -1,68 +1,58 @@
-# mindx/monitoring/resource_monitor.py
+# monitoring/resource_monitor.py
 import os
 import time
-import logging # Standard logging
+# import logging # Use get_logger
 import asyncio
 import psutil # Requires pip install psutil
-from typing import Dict, Any, Optional, List, Callable, Union, Coroutine, Tuple
+from typing import Dict, Any, Optional, List, Callable, Union, Coroutine, Tuple # Added Tuple
 from pathlib import Path
 from enum import Enum
+import stat # For file permissions
 
-from mindx.utils.config import Config, PROJECT_ROOT
-from mindx.utils.logging_config import get_logger
+# Import from sibling top-level package
+from utils.config import Config, PROJECT_ROOT
+from utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 
 class ResourceType(Enum): # pragma: no cover
-    """Enumeration for the type of resource being monitored or alerted on."""
     CPU = "cpu"
     MEMORY = "memory"
     DISK = "disk"
 
 class ResourceMonitor:
-    """
-    Monitors system resources such as CPU, memory, and disk usage for multiple paths.
-    
-    This class provides real-time monitoring and can trigger asynchronous callbacks
-    when resource usage exceeds specified thresholds, with debouncing for alerts.
-    It's implemented as a singleton, typically accessed via `get_resource_monitor()`.
-    """
     _instance = None
-    _lock = asyncio.Lock() # Lock for singleton creation and potentially for critical sections if needed
+    _lock = asyncio.Lock()
 
     def __new__(cls, *args, **kwargs): # pragma: no cover
         if not cls._instance:
-            # Ensure that even if __new__ is called multiple times before __init__ completes for the first,
-            # only one instance is created. The lock helps here for async instantiation.
-            # However, typical singleton usage relies on get_X() methods to manage this.
             cls._instance = super(ResourceMonitor, cls).__new__(cls)
         return cls._instance
 
     def __init__(self, config_override: Optional[Config] = None, test_mode: bool = False): # pragma: no cover
         if hasattr(self, '_initialized') and self._initialized and not test_mode:
             return
-        
+
         self.config = config_override or Config()
-        
+
         self.max_cpu_percent: float = self.config.get("monitoring.resource.max_cpu_percent", 85.0)
         self.max_memory_percent: float = self.config.get("monitoring.resource.max_memory_percent", 85.0)
-        
-        self.disk_threshold_map: Dict[str, float] = {} # path_str (normalized, absolute) -> threshold
+
+        self.disk_threshold_map: Dict[str, float] = {}
         self._configure_disk_thresholds()
 
         self.cpu_usage: float = 0.0
         self.memory_usage: float = 0.0
         self.disk_usage_map: Dict[str, float] = {path: 0.0 for path in self.disk_threshold_map.keys()}
-        
-        # Callbacks now expect: async def callback(monitor: ResourceMonitor, rtype: ResourceType, value: float, path: Optional[str])
-        self.alert_callbacks: List[Callable[[ResourceMonitor, ResourceType, float, Optional[str]], Coroutine[Any, Any, None]]] = []
-        self.resolve_callbacks: List[Callable[[ResourceMonitor, ResourceType, float, Optional[str]], Coroutine[Any, Any, None]]] = []
-        
+
+        # Use forward reference 'ResourceMonitor' for type hints within the class
+        self.alert_callbacks: List[Callable[['ResourceMonitor', ResourceType, float, Optional[str]], Coroutine[Any, Any, None]]] = []
+        self.resolve_callbacks: List[Callable[['ResourceMonitor', ResourceType, float, Optional[str]], Coroutine[Any, Any, None]]] = []
+
         self.monitoring: bool = False
         self.monitoring_task: Optional[asyncio.Task] = None
         self.monitoring_interval: float = self.config.get("monitoring.resource.interval", 10.0)
-        
-        # Alert debouncing: Key is ResourceType for CPU/Mem, (ResourceType.DISK, path_str) for disk
+
         self._alert_active_flags: Dict[Union[ResourceType, Tuple[ResourceType, str]], bool] = {}
         self._last_alert_timestamp: Dict[Union[ResourceType, Tuple[ResourceType, str]], float] = {}
         self.re_alert_interval_seconds: float = self.config.get("monitoring.resource.re_alert_interval_seconds", 300.0)
@@ -74,23 +64,22 @@ class ResourceMonitor:
         self._initialized = True
 
     def _configure_disk_thresholds(self): # pragma: no cover
-        """Parses disk path configurations from the global Config object."""
         disk_configs_raw = self.config.get("monitoring.resource.disk_paths", [{"path": "/", "threshold": 90.0}])
         default_disk_threshold = self.config.get("monitoring.resource.max_disk_percent", 90.0)
 
         disk_configs_list: List[Any]
         if isinstance(disk_configs_raw, list):
             disk_configs_list = disk_configs_raw
-        elif isinstance(disk_configs_raw, str): # Handle single path string for convenience
-            disk_configs_list = [disk_configs_raw]
+        elif isinstance(disk_configs_raw, str):
+            disk_configs_list = [{"path": disk_configs_raw, "threshold": default_disk_threshold}] # Ensure dict format
         else:
             logger.warning(f"Invalid 'monitoring.resource.disk_paths' config format: {type(disk_configs_raw)}. Defaulting to root path '/' only.")
-            disk_configs_list = [{"path": "/"}] # Ensure it's a list for processing
+            disk_configs_list = [{"path": "/"}]
 
         for item in disk_configs_list:
             path_str: Optional[str] = None
             threshold: Optional[float] = None
-            if isinstance(item, str):
+            if isinstance(item, str): # Handle simple string list if accidentally configured that way
                 path_str = item
                 threshold = default_disk_threshold
             elif isinstance(item, dict) and "path" in item:
@@ -106,29 +95,25 @@ class ResourceMonitor:
             
             if path_str and threshold is not None:
                 try:
-                    # Resolve to absolute, normalized path to use as consistent key
-                    # Ensure the path exists at config time, or handle gracefully if it might appear later.
-                    # For now, we assume paths should generally exist or be mount points.
-                    resolved_path = Path(path_str).resolve(strict=False) # strict=False allows non-existent paths
+                    resolved_path = Path(path_str).resolve(strict=False)
                     norm_path_str = str(resolved_path)
                     if not resolved_path.exists() and os.path.ismount(path_str): # pragma: no cover
                          logger.info(f"Configured disk path '{path_str}' (mount point) does not strictly exist yet, but will be monitored.")
-                    elif not resolved_path.exists(): # pragma: no cover
-                         logger.warning(f"Configured disk path '{path_str}' resolved to '{norm_path_str}' which does not exist. Monitoring may fail for this path.")
+                    elif not resolved_path.exists() and not os.path.ismount(path_str): # Also check if it's not a mount
+                         logger.warning(f"Configured disk path '{path_str}' resolved to '{norm_path_str}' which does not exist and is not a mount point. Monitoring may fail for this path.")
                     
                     self.disk_threshold_map[norm_path_str] = threshold
                 except Exception as e: # pragma: no cover
                     logger.error(f"Invalid or inaccessible disk path configured '{path_str}': {e}. Skipping.")
-            elif item: # If item was not empty but malformed
+            elif item:
                 logger.warning(f"Malformed disk config item: {item}. Skipping.")
         
-        if not self.disk_threshold_map: # Ensure at least root is monitored if config was empty/all invalid
+        if not self.disk_threshold_map:
              self.disk_threshold_map[str(Path("/").resolve())] = default_disk_threshold
              logger.warning("No valid disk paths configured or all failed. Defaulting to monitor root path '/' only.")
 
 
     def start_monitoring(self, interval: Optional[float] = None): # pragma: no cover
-        """Starts the asynchronous resource monitoring loop."""
         if self.monitoring:
             logger.warning("Resource monitoring is already running.")
             return
@@ -143,47 +128,40 @@ class ResourceMonitor:
         logger.info(f"Started resource monitoring. Interval: {eff_interval}s")
     
     def stop_monitoring(self): # pragma: no cover
-        """Stops the resource monitoring loop."""
         if not self.monitoring:
-            logger.info("Resource monitoring is not running or already stopped.") # Info, not warning
+            logger.info("Resource monitoring is not running or already stopped.")
             return
         
-        self.monitoring = False # Signal loop to stop
+        self.monitoring = False
         if self.monitoring_task and not self.monitoring_task.done():
             self.monitoring_task.cancel()
-            # Note: To ensure graceful shutdown, one might await self.monitoring_task here
-            # in a try/except asyncio.CancelledError block, but stop_monitoring itself
-            # is often called from contexts where long awaits are not ideal (e.g. app shutdown).
-            # The loop itself handles CancelledError.
             logger.info("Resource monitoring cancellation requested.")
-        self.monitoring_task = None # Clear task reference
+        self.monitoring_task = None
     
     async def _monitor_resources_loop(self, interval: float): # pragma: no cover
-        """The main monitoring loop that periodically checks resources."""
         logger.info("Resource monitoring loop started.")
         try:
-            # Initial CPU usage often needs a small interval to get a reading other than 0.0 on some systems
-            psutil.cpu_percent(interval=0.1) 
+            psutil.cpu_percent(interval=0.1)
         except Exception as e: # pragma: no cover
             logger.error(f"Failed initial psutil.cpu_percent call during monitor startup: {e}")
 
         while self.monitoring:
             start_check_time = time.monotonic()
             try:
-                await self.update_current_usage() # Update usage stats
+                await self.update_current_usage()
                 
                 disk_usage_str_parts = []
                 for p, u in self.disk_usage_map.items():
-                    p_display = Path(p).name # Display just the name for brevity
+                    try: p_display = Path(p).name # Fails if p is not a valid path string, e.g. empty
+                    except: p_display = p[:15] # Fallback for display
                     disk_usage_str_parts.append(f"{p_display}:{u if u >= 0 else 'ERR'}%")
                 disk_usage_str = ", ".join(disk_usage_str_parts)
                 logger.debug(f"Res Usage: CPU {self.cpu_usage:.1f}%, Mem {self.memory_usage:.1f}%, Disks [{disk_usage_str}]")
                 
                 await self._check_and_trigger_alerts()
                 
-                # Dynamic sleep to maintain interval approximately
                 elapsed_check_time = time.monotonic() - start_check_time
-                sleep_duration = max(0.1, interval - elapsed_check_time) # Ensure at least small sleep
+                sleep_duration = max(0.1, interval - elapsed_check_time)
                 await asyncio.sleep(sleep_duration)
 
             except asyncio.CancelledError: # pragma: no cover
@@ -191,43 +169,38 @@ class ResourceMonitor:
                 break
             except Exception as e: # pragma: no cover
                 logger.error(f"Error in resource_monitor loop: {e}", exc_info=True)
-                await asyncio.sleep(interval * 2) # Longer sleep on unexpected error to prevent fast error loops
+                await asyncio.sleep(interval * 2)
         logger.info("Resource monitoring loop finished.")
 
     async def update_current_usage(self): # pragma: no cover
-        """Updates all current resource usage metrics. Can be called manually if needed."""
         try:
-            # Run psutil calls in a thread pool executor to avoid blocking the event loop,
-            # as some psutil calls can be blocking, especially for disk I/O.
             loop = asyncio.get_running_loop()
             
-            self.cpu_usage = await loop.run_in_executor(None, psutil.cpu_percent, None) # Non-blocking after first call
+            self.cpu_usage = await loop.run_in_executor(None, psutil.cpu_percent, None)
             
             mem_info = await loop.run_in_executor(None, psutil.virtual_memory)
             self.memory_usage = mem_info.percent
             
-            disk_paths_to_check = list(self.disk_threshold_map.keys()) # Copy for safe iteration
+            disk_paths_to_check = list(self.disk_threshold_map.keys())
             for path_str in disk_paths_to_check:
                 try:
                     disk_info = await loop.run_in_executor(None, psutil.disk_usage, path_str)
                     self.disk_usage_map[path_str] = disk_info.percent
                 except FileNotFoundError: # pragma: no cover
                     logger.warning(f"Disk path '{path_str}' no longer found. Monitoring for it disabled.")
-                    self.disk_usage_map.pop(path_str, None) # Remove from current usage
-                    self.disk_threshold_map.pop(path_str, None) # Remove from configured thresholds
-                    self._alert_active_flags.pop((ResourceType.DISK, path_str), None) # Clear alert state
+                    self.disk_usage_map.pop(path_str, None)
+                    self.disk_threshold_map.pop(path_str, None)
+                    self._alert_active_flags.pop((ResourceType.DISK, path_str), None)
                 except Exception as e_disk: # pragma: no cover
                     logger.error(f"Error getting disk usage for '{path_str}': {e_disk}")
-                    self.disk_usage_map[path_str] = -1.0 # Indicate error state for this path
+                    self.disk_usage_map[path_str] = -1.0
         except Exception as e_update: # pragma: no cover
              logger.error(f"Failed to update one or more resource usage metrics: {e_update}", exc_info=True)
 
 
     async def _check_and_trigger_alerts(self): # pragma: no cover
-        """Checks current usage against thresholds and triggers alerts with debouncing."""
         now = time.time()
         
-        # CPU Check
         cpu_key = ResourceType.CPU
         if self.cpu_usage > self.max_cpu_percent:
             if not self._alert_active_flags.get(cpu_key) or \
@@ -236,12 +209,11 @@ class ResourceMonitor:
                 await self._execute_callbacks(self.alert_callbacks, self, cpu_key, self.cpu_usage, None)
                 self._alert_active_flags[cpu_key] = True
                 self._last_alert_timestamp[cpu_key] = now
-        elif self._alert_active_flags.get(cpu_key): # Was active, now below threshold
+        elif self._alert_active_flags.get(cpu_key):
              logger.info(f"RESOLVED: CPU usage ({self.cpu_usage:.1f}%) back below limit ({self.max_cpu_percent}%).")
              await self._execute_callbacks(self.resolve_callbacks, self, cpu_key, self.cpu_usage, None)
              self._alert_active_flags[cpu_key] = False
 
-        # Memory Check (similar logic to CPU)
         mem_key = ResourceType.MEMORY
         if self.memory_usage > self.max_memory_percent:
             if not self._alert_active_flags.get(mem_key) or \
@@ -255,11 +227,10 @@ class ResourceMonitor:
              await self._execute_callbacks(self.resolve_callbacks, self, mem_key, self.memory_usage, None)
              self._alert_active_flags[mem_key] = False
 
-        # Disk Check
         for path_str, usage in self.disk_usage_map.items():
-            if usage < 0: continue # Skip paths with errors or not found
-            threshold = self.disk_threshold_map.get(path_str) # Path should be normalized and absolute here
-            if threshold is None: continue 
+            if usage < 0: continue
+            threshold = self.disk_threshold_map.get(path_str)
+            if threshold is None: continue
 
             disk_key_tuple = (ResourceType.DISK, path_str)
             if usage > threshold:
@@ -274,53 +245,45 @@ class ResourceMonitor:
                  await self._execute_callbacks(self.resolve_callbacks, self, ResourceType.DISK, usage, path_str)
                  self._alert_active_flags[disk_key_tuple] = False
 
-    async def _execute_callbacks(self, 
-                                 callbacks: List[Callable[[ResourceMonitor, ResourceType, float, Optional[str]], Coroutine[Any, Any, None]]], 
-                                 monitor_instance: 'ResourceMonitor', 
-                                 rtype: ResourceType, 
-                                 value: float, 
+    async def _execute_callbacks(self,
+                                 callbacks: List[Callable[['ResourceMonitor', ResourceType, float, Optional[str]], Coroutine[Any, Any, None]]],
+                                 monitor_instance: 'ResourceMonitor', # Use string forward reference
+                                 rtype: ResourceType,
+                                 value: float,
                                  path: Optional[str] = None): # pragma: no cover
-        """Executes a list of asynchronous callbacks, handling errors individually."""
         for callback in callbacks:
             try:
-                # Ensure callback is awaitable if it's an async def
                 if asyncio.iscoroutinefunction(callback):
                     await callback(monitor_instance, rtype, value, path)
-                else: # pragma: no cover # Should not happen with type hints
+                else: # pragma: no cover
                     logger.warning(f"Callback {getattr(callback, '__name__', 'unknown')} is not an async function, but was registered. Calling it synchronously.")
-                    callback(monitor_instance, rtype, value, path) # Call synchronously if not awaitable
+                    callback(monitor_instance, rtype, value, path)
             except Exception as e_cb:
                 logger.error(f"Error in resource monitor callback '{getattr(callback, '__name__', 'unknown_callback')}': {e_cb}", exc_info=True)
-    
-    def register_alert_callback(self, callback: Callable[[ResourceMonitor, ResourceType, float, Optional[str]], Coroutine[Any, Any, None]]): # pragma: no cover
-        """Registers an async callback for when any resource exceeds its threshold."""
+
+    def register_alert_callback(self, callback: Callable[['ResourceMonitor', ResourceType, float, Optional[str]], Coroutine[Any, Any, None]]): # pragma: no cover
         if callback not in self.alert_callbacks: self.alert_callbacks.append(callback)
-    
-    def register_resolve_callback(self, callback: Callable[[ResourceMonitor, ResourceType, float, Optional[str]], Coroutine[Any, Any, None]]): # pragma: no cover
-        """Registers an async callback for when resource usage returns to normal after an alert."""
+
+    def register_resolve_callback(self, callback: Callable[['ResourceMonitor', ResourceType, float, Optional[str]], Coroutine[Any, Any, None]]): # pragma: no cover
         if callback not in self.resolve_callbacks: self.resolve_callbacks.append(callback)
-    
+
     def get_resource_usage(self) -> Dict[str, Union[float, Dict[str, float]]]: # pragma: no cover
-        """Gets current (last read) resource usage."""
-        # Ensure thread-safety if called from different threads, though typically called from async context
         return {
             "cpu_percent": self.cpu_usage,
             "memory_percent": self.memory_usage,
-            "disk_usage_map": self.disk_usage_map.copy() # Map of path_str (abs) -> usage_percent
+            "disk_usage_map": self.disk_usage_map.copy()
         }
-    
+
     def get_resource_limits(self) -> Dict[str, Union[float, Dict[str, float]]]: # pragma: no cover
-        """Gets configured resource limits."""
         return {
             "max_cpu_percent": self.max_cpu_percent,
             "max_memory_percent": self.max_memory_percent,
-            "disk_threshold_map": self.disk_threshold_map.copy() # Map of path_str (abs) -> threshold
+            "disk_threshold_map": self.disk_threshold_map.copy()
         }
-    
-    def set_resource_limits(self, max_cpu_percent: Optional[float] = None, 
+
+    def set_resource_limits(self, max_cpu_percent: Optional[float] = None,
                            max_memory_percent: Optional[float] = None,
                            disk_threshold_map_update: Optional[Dict[str, float]] = None): # pragma: no cover
-        """Dynamically updates resource limits."""
         if max_cpu_percent is not None:
             if 0 < max_cpu_percent <= 100: self.max_cpu_percent = max_cpu_percent
             else: logger.warning(f"Invalid max_cpu_percent: {max_cpu_percent}. Must be (0, 100].")
@@ -334,25 +297,23 @@ class ResourceMonitor:
                      logger.warning(f"Invalid disk threshold for '{path_str}': {threshold}. Must be (0, 100]. Skipping update for this path.")
                      continue
                 try:
-                    norm_path = str(Path(path_str).resolve(strict=False)) # Allow non-existent for config
+                    norm_path = str(Path(path_str).resolve(strict=False))
                     self.disk_threshold_map[norm_path] = threshold
-                    if norm_path not in self.disk_usage_map: self.disk_usage_map[norm_path] = 0.0 # Add if new
-                    # Reset alert state for this specific disk path if threshold changed
+                    if norm_path not in self.disk_usage_map: self.disk_usage_map[norm_path] = 0.0
                     disk_key_tuple = (ResourceType.DISK, norm_path)
-                    self._alert_active_flags.pop(disk_key_tuple, None) 
+                    self._alert_active_flags.pop(disk_key_tuple, None)
                     self._last_alert_timestamp.pop(disk_key_tuple, None)
                 except Exception as e: # pragma: no cover
                     logger.error(f"Error processing disk threshold update for '{path_str}': {e}")
 
         logger.info(f"Resource limits updated. CPU: {self.max_cpu_percent}%, Mem: {self.max_memory_percent}%, Disk: {self.disk_threshold_map}")
-    
+
     async def _shutdown_monitoring_task(self): # pragma: no cover
-        """Helper to gracefully stop the monitoring task."""
         if self.monitoring_task and not self.monitoring_task.done():
-            self.monitoring = False # Signal loop to stop
+            self.monitoring = False
             self.monitoring_task.cancel()
             try:
-                await asyncio.wait_for(self.monitoring_task, timeout=2.0) # Short timeout for cancellation
+                await asyncio.wait_for(self.monitoring_task, timeout=2.0)
             except asyncio.CancelledError:
                 logger.info("Resource monitoring task was cancelled as expected during shutdown.")
             except asyncio.TimeoutError: # pragma: no cover
@@ -363,49 +324,34 @@ class ResourceMonitor:
 
 
     @classmethod
-    async def reset_instance_async(cls): # For testing, async version # pragma: no cover
-        """Asynchronously resets the singleton instance. Ensures monitoring task is stopped."""
+    async def reset_instance_async(cls): # pragma: no cover
         async with cls._lock:
             if cls._instance:
                 await cls._instance._shutdown_monitoring_task()
-                cls._instance._initialized = False # Allow re-init
+                cls._instance._initialized = False
                 cls._instance = None
         logger.debug("ResourceMonitor instance reset asynchronously.")
 
-# Asynchronous factory/getter for the singleton
 async def get_resource_monitor_async(config_override: Optional[Config] = None, test_mode: bool = False) -> ResourceMonitor: # pragma: no cover
-    """Asynchronously gets or creates the ResourceMonitor singleton instance."""
     if not ResourceMonitor._instance or test_mode:
-        async with ResourceMonitor._lock: # Use the class's lock for thread/task safety
+        async with ResourceMonitor._lock:
             if ResourceMonitor._instance is None or test_mode:
                 if test_mode and ResourceMonitor._instance is not None:
-                    await ResourceMonitor._instance._shutdown_monitoring_task() # Ensure old task is stopped
-                    ResourceMonitor._instance = None # Force re-creation
+                    await ResourceMonitor._instance._shutdown_monitoring_task()
+                    ResourceMonitor._instance = None
                 ResourceMonitor._instance = ResourceMonitor(config_override=config_override, test_mode=test_mode)
     return ResourceMonitor._instance
 
-# Synchronous getter, primarily for initial setup or contexts where async isn't available.
 def get_resource_monitor(config_override: Optional[Config] = None, test_mode: bool = False) -> ResourceMonitor: # pragma: no cover
-    """
-    Synchronously gets or creates the ResourceMonitor singleton instance.
-    Note: If the monitor's async tasks need to be running, ensure start_monitoring() is called
-    from an async context after getting the instance.
-    """
-    # This sync getter is simplified; for true thread safety with async init, it's complex.
-    # Assumes that if an instance exists, it's properly initialized.
     if ResourceMonitor._instance is None or test_mode:
-        # In a sync context, we can't easily wait for an async lock if another task is creating it.
-        # This relies on typical app startup being single-threaded or the async factory being called first.
+        # This sync getter can't fully handle async shutdown of a previous test instance gracefully
+        # Best to use async_get_resource_monitor in test setups if possible
         if test_mode and ResourceMonitor._instance is not None:
-            # For test mode, try to run the async shutdown if a loop is available
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running(): # pragma: no cover
-                    asyncio.run_coroutine_threadsafe(ResourceMonitor._instance._shutdown_monitoring_task(), loop).result(timeout=2.0)
-                else: # pragma: no cover
-                    loop.run_until_complete(ResourceMonitor._instance._shutdown_monitoring_task())
-            except Exception as e_shut:  # pragma: no cover
-                logger.warning(f"Error shutting down previous ResourceMonitor instance during sync test reset: {e_shut}")
-            ResourceMonitor._instance = None
+             logger.warning("Test mode reset for ResourceMonitor in sync getter: async shutdown of previous task not guaranteed.")
+             # Try a best effort sync shutdown if no loop is running
+             if ResourceMonitor._instance.monitoring_task and not ResourceMonitor._instance.monitoring_task.done():
+                 ResourceMonitor._instance.monitoring_task.cancel() # No await here
+             ResourceMonitor._instance = None
+
         ResourceMonitor._instance = ResourceMonitor(config_override=config_override, test_mode=test_mode)
     return ResourceMonitor._instance
