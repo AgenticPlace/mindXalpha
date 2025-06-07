@@ -9,11 +9,11 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple, Union, Set, Coroutine
 from enum import Enum
 
-from mindx.utils.config import Config, PROJECT_ROOT
-from mindx.utils.logging_config import get_logger
-from mindx.llm.model_registry import get_model_registry, ModelRegistry # Singleton accessor
-from mindx.llm.llm_interface import LLMInterface # Abstract base class for handlers
-from mindx.core.belief_system import BeliefSystem, BeliefSource
+from utils.config import Config, PROJECT_ROOT
+from utils.logging_config import get_logger
+from .llm.model_registry import get_model_registry, ModelRegistry # Singleton accessor
+from .llm.llm_interface import LLMInterface # Abstract base class for handlers
+from .core.belief_system import BeliefSystem, BeliefSource
 # Import ModelSelector which MMA will use
 from .model_selector import ModelSelector # Relative import
 
