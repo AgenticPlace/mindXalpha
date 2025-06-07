@@ -2,7 +2,7 @@
 """
 BlueprintAgent for MindX Strategic Evolution Planning.
 
-This agent analyzes the current state of the MindX system and uses an LLM
+This agent analyzes the current state of the mindX system and uses an LLM
 to propose a strategic blueprint for the next iteration of MindX's own
 self-improvement and development.
 """
@@ -14,14 +14,14 @@ import time
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple, Union
 
-from mindx.utils.config import Config, PROJECT_ROOT
-from mindx.utils.logging_config import get_logger
-from mindx.core.belief_system import BeliefSystem, BeliefSource # For context
-from mindx.llm.llm_factory import create_llm_handler, LLMHandler
+from utils.config import Config, PROJECT_ROOT
+from utils.logging_config import get_logger
+from core.belief_system import BeliefSystem, BeliefSource # For context
+from llm.llm_factory import create_llm_handler, LLMHandler
 # To access other agents' states or capabilities (conceptually)
-from mindx.orchestration.coordinator_agent import CoordinatorAgent # To get backlog, history
-from mindx.learning.self_improve_agent import SELF_AGENT_FILENAME as SIA_FILENAME # To reference SIA
-from mindx.learning.strategic_evolution_agent import StrategicEvolutionAgent # If BlueprintAgent needs to know about SEA
+from orchestration.coordinator_agent import CoordinatorAgent # To get backlog, history
+from learning.self_improve_agent import SELF_AGENT_FILENAME as SIA_FILENAME # To reference SIA
+from learning.strategic_evolution_agent import StrategicEvolutionAgent # If BlueprintAgent needs to know about SEA
 
 logger = get_logger(__name__)
 
