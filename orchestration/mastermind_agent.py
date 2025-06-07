@@ -26,24 +26,19 @@ import importlib
 # Attempt to import CodeBaseGenerator from the 'tools' package
 CodeBaseGenerator = None # Initialize to None
 try:
+    # This assumes base_gen_agent.py is in the 'tools' top-level package
     from tools.base_gen_agent import BaseGenAgent as ImportedCodeBaseGenerator
-    CodeBaseGenerator = ImportedCodeBaseGenerator # Assign if import succeeds
+    CodeBaseGenerator = ImportedCodeBaseGenerator
     logger.info("MastermindAgent: CodeBaseGenerator successfully imported from tools.base_gen_agent.")
 except ImportError as e1: # pragma: no cover
-    logger.warning(f"MastermindAgent: Could not import CodeBaseGenerator from tools.base_gen_agent ({e1}). Trying fallback.")
-    # Fallback if 'tools' is not on path or base_gen_agent is structured differently
-    # This fallback is less likely to work given your structure but kept for robustness.
+    logger.warning(f"MastermindAgent: Could not import CodeBaseGenerator from tools.base_gen_agent ({e1}). This is expected if 'tools.base_gen_agent' is not the correct path or 'tools' is not a package.")
     try:
         from base_gen_agent import BaseGenAgent as FallbackCodeBaseGenerator # If it's a top-level module
         CodeBaseGenerator = FallbackCodeBaseGenerator
         logger.info("MastermindAgent: CodeBaseGenerator imported as a top-level module (fallback).")
     except ImportError as e2:
         logger.warning(f"MastermindAgent: CodeBaseGenerator (from base_gen_agent) also not found ({e2}). Code analysis capabilities will be limited.")
-        # CodeBaseGenerator remains None
-# No 'else' needed here as CodeBaseGenerator is already None or assigned.
-
-# (The rest of the MastermindAgent class from the previous full response will follow here)
-# It should start with: class MastermindAgent:
+        # CodeBaseGenerator remains None if both attempts fail
 
 class MastermindAgent:
     _instance = None
@@ -143,7 +138,7 @@ class MastermindAgent:
         )
 
         self.code_base_analyzer: Optional[CodeBaseGenerator] = None # type: ignore
-        if CodeBaseGenerator: # Check if import was successful
+        if CodeBaseGenerator:
             base_gen_config_path_str = self.config.get(
                 "mastermind_agent.base_gen_config_path_override",
                 None
@@ -158,7 +153,6 @@ class MastermindAgent:
                 logger.error(f"{self.log_prefix} Failed to initialize CodeBaseGenerator: {e_cba}", exc_info=True)
         else: # pragma: no cover
             logger.warning(f"{self.log_prefix} CodeBaseGenerator class not available (import failed), Mastermind's code analysis capabilities are limited.")
-
 
         self._register_mastermind_bdi_actions()
 
@@ -587,7 +581,6 @@ class MastermindAgent:
         logger.info(f"{self.log_prefix} {msg}")
         return True, {"message": msg, "tool_id": tool_id}
 
-
     async def _bdi_action_mark_tool_status(self, params: Dict[str, Any], **kwargs) -> Tuple[bool, Any]: # pragma: no cover
         tool_id = params.get("tool_id")
         new_status_str = params.get("new_status")
@@ -737,7 +730,7 @@ class MastermindAgent:
         bdi_final_agent_status = self.bdi_agent._internal_state["status"]
         
         campaign_successful = False
-        if bdi_final_agent_status == "COMPLETED_GOAL_ACHIEVED": 
+        if bdi_final_agent_status == "COMPLETED_GOAL_ACHIEVED":
              campaign_successful = True
         else:
              try:
