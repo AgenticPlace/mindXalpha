@@ -1,6 +1,6 @@
 {
   "HARD_CODED_EXCLUDES": [
-    "*.md", 
+    "*.md",
     "*.txt",
     "*.pdf", "*.doc", "*.docx", "*.odt",
     "*.ttf", "*.otf", "*.woff", "*.woff2",
@@ -12,9 +12,9 @@
     "*.class", "*.jar", "*.war", "*.ear",
     "*.pyc", "*.pyo", "__pycache__/",
     "package-lock.json", "yarn.lock", "poetry.lock", "Pipfile.lock", "composer.lock",
-    "node_modules/", 
-    "vendor/", "vendors/", 
-    "venv/", ".venv/", "env/", ".env_dev", ".env_prod", /* Be careful with generic .env */
+    "node_modules/",
+    "vendor/", "vendors/",
+    "venv/", ".venv/", "env/", ".env_dev", ".env_prod",
     "target/", "dist/", "build/", "out/", "bin/", "obj/",
     ".git/", ".hg/", ".svn/", ".bzr/",
     ".DS_Store", "Thumbs.db",
@@ -37,7 +37,7 @@
     ".cs": "csharp", ".csharp": "csharp", ".csproj": "xml", ".sln": "plaintext",
     ".csp": "csp", ".css": "css", ".d": "d", ".dart": "dart", ".dpr": "delphi",
     ".dfm": "delphi", ".pas": "delphi", ".diff": "diff", ".patch": "diff", ".django": "django",
-    ".dns": "dns", ".dockerfile": "dockerfile", "dockerfile": "dockerfile", /* For files named Dockerfile */
+    ".dns": "dns", ".dockerfile": "dockerfile", "dockerfile": "dockerfile",
     ".bat": "dos", ".cmd": "dos", ".dsconfig": "dsconfig", ".dts": "dts", ".dust": "dust",
     ".ebnf": "ebnf", ".ex": "elixir", ".exs": "elixir", ".elm": "elm", ".erb": "erb",
     ".erl": "erlang", ".hrl": "erlang", ".fix": "fix", ".flix": "flix",
@@ -51,26 +51,24 @@
     ".ini": "ini", ".cfg": "ini", ".prefs": "ini", ".properties": "ini",
     ".irpf90": "irpf90", ".isbl": "isbl", ".java": "java", ".js": "javascript", ".jsx": "javascript",
     ".mjs": "javascript", ".cjs": "javascript", ".json": "json", ".geojson": "json", ".topojson": "json",
-    ".jsonc": "json", /* JSON with comments */ ".json5": "json", ".jl": "julia",
+    ".jsonc": "json", ".json5": "json", ".jl": "julia",
     ".julia-repl": "julia-repl", ".kt": "kotlin", ".kts": "kotlin", ".lasso": "lasso",
     ".tex": "latex", ".ltx": "latex", ".sty": "latex", ".cls": "latex", ".ldif": "ldif",
     ".leaf": "leaf", ".less": "less", ".lisp": "lisp", ".lsp": "lisp", ".cl": "lisp",
     ".livecodeserver": "livecodeserver", ".ls": "livescript", ".ll": "llvm", ".lsl": "lsl",
-    ".lua": "lua", ".mk": "makefile", "makefile": "makefile", /* For files named Makefile */
-    "GNUmakefile": "makefile", ".mak": "makefile",
-    /* .md will be excluded by default, but if included, use markdown */
-    ".markdown": "markdown", ".rmd": "markdown", ".nb": "mathematica", ".m": "matlab",
+    ".lua": "lua", ".mk": "makefile", "makefile": "makefile",
+    "GNUmakefile": "makefile", ".mak": "makefile", ".markdown": "markdown", ".rmd": "markdown", ".nb": "mathematica", ".m": "matlab",
     ".max": "maxima", ".mel": "mel", ".mrc": "mercury", ".s": "mipsasm", ".miz": "mizar",
     ".monkey": "monkey", ".moon": "moonscript", ".n1ql": "n1ql", ".nginx": "nginx",
     ".nim": "nim", ".nix": "nix", ".node": "node-repl", ".nsi": "nsis", ".nsh": "nsis",
-    ".m": "objectivec", /* Also Matlab, Objective-C needs context */ ".mm": "objectivec", ".objc": "objectivec",
+    ".m": "objectivec", ".mm": "objectivec", ".objc": "objectivec",
     ".ml": "ocaml", ".mli": "ocaml", ".scad": "openscad", ".oxygene": "oxygene",
     ".parser3": "parser3", ".pl": "perl", ".pm": "perl", ".t": "perl",
     ".pf": "pf", ".php": "php", ".phtml": "php", ".php3": "php", ".php4": "php", ".php5": "php", ".php7": "php", ".phps": "php",
     ".pony": "pony", ".ps1": "powershell", ".psm1": "powershell", ".psd1": "powershell",
     ".pde": "processing", ".profile": "profile", ".pro": "prolog", ".P": "prolog",
     ".proto": "protobuf", ".pp": "puppet", ".pb": "purebasic", ".py": "python",
-    ".pyw": "python", ".pyi": "python", /* Stub files */ ".gyp": "python", ".gpy": "python",
+    ".pyw": "python", ".pyi": "python", ".gyp": "python", ".gpy": "python",
     ".q": "q", ".qml": "qml", ".r": "r", ".R": "r", ".rds": "r", ".re": "reasonml",
     ".rei": "reasonml", ".rib": "rib", ".rsc": "routeros", ".rsl": "rsl",
     ".rb": "ruby", ".rbw": "ruby", ".gemspec": "ruby", "Rakefile": "ruby",
@@ -84,9 +82,48 @@
     ".twig": "twig", ".ts": "typescript", ".tsx": "typescript", ".vala": "vala",
     ".vb": "vbnet", ".vbnet": "vbnet", ".vbs": "vbscript", ".vhd": "vhdl", ".vhdl": "vhdl",
     ".vim": "vim", ".x86asm": "x86asm", ".xl": "xl", ".xml": "xml", ".xsd": "xml", ".xsl": "xml",
-    ".xslt": "xml", ".rss": "xml", ".atom": "xml", ".plist": "xml", ".svg": "xml", /* SVG is XML-based */
+    ".xslt": "xml", ".rss": "xml", ".atom": "xml", ".plist": "xml", ".svg": "xml",
     ".xq": "xquery", ".xquery": "xquery", ".yaml": "yaml", ".yml": "yaml",
     ".zep": "zephir", ".zephir": "zephir"
+  },
+  "llm": {
+    "default_provider": "gemini",
+    "gemini": {
+      "api_key": null,
+      "default_model": "gemini-1.5-flash-latest",
+      "default_model_for_strategy": "gemini-1.5-pro-latest",
+      "default_model_for_orchestration": "gemini-1.5-flash-latest",
+      "default_model_for_reasoning": "gemini-1.5-flash-latest"
+    },
+    "groq": {
+      "api_key": null,
+      "default_model": "llama3-8b-8192"
+    }
+  },
+  "mastermind_agent": {
+    "default_agent_id": "mastermind_prime_augmentic",
+    "llm": {
+      "provider": "gemini",
+      "model": "gemini-1.5-pro-latest"
+    }
+  },
+  "coordinator": {
+    "llm": {
+      "provider": "gemini",
+      "model": "gemini-1.5-flash-latest"
+    }
+  },
+  "bdi": {
+    "default_llm": {
+      "provider": "gemini",
+      "model": "gemini-1.5-flash-latest"
+    },
+    "mastermind_strategy_mastermind_prime_augmentic": {
+      "llm": {
+        "provider": "gemini",
+        "model": "gemini-1.5-pro-latest"
+      }
+    }
   },
   "base_gen_agent": {
     "max_file_size_kb_for_inclusion": 2048,
