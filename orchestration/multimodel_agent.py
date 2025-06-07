@@ -24,7 +24,7 @@ class TaskType(Enum): # pragma: no cover
     GENERATION = "generation"; REASONING = "reasoning"; SUMMARIZATION = "summarization"
     CODE_GENERATION = "code_generation"; CODE_REVIEW = "code_review"; PLANNING = "planning"
     RESEARCH = "research"; SELF_IMPROVEMENT_ANALYSIS = "self_improvement_analysis"
-    DATA_EXTRACTION = "data_extraction"; TRANSLATION = "translation" # Added more examples
+    DATA_EXTRACTION = "data_extraction"; TRANSLATION = "translation" # Add more here
 
 class TaskPriority(Enum): LOW = 1; MEDIUM = 2; HIGH = 3; CRITICAL = 4 # pragma: no cover
 class TaskStatus(Enum): PENDING = "pending"; ASSIGNED = "assigned"; IN_PROGRESS = "in_progress"; COMPLETED = "completed"; FAILED = "failed"; CANCELLED = "cancelled" # pragma: no cover
