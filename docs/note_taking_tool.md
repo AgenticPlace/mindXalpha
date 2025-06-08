@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The `NoteTakingTool` is a utility component for MindX agents (Augmentic Project). It provides a simple mechanism for agents to create, read, update, delete, and list textual notes. Notes are stored as plain text files (`.txt`) in a configurable directory structure, organized by "topic" which typically maps to the filename.
+The `NoteTakingTool` is a utility component for mindX agents (Augmentic Project). It provides a simple mechanism for agents to create, read, update, delete, and list textual notes. Notes are stored as plain text files (`.txt`) in a configurable directory structure, organized by "topic" which typically maps to the filename.
 
 This tool is designed to be used by agents like the `BDIAgent` or `StrategicEvolutionAgent` to persist information, scratchpad thoughts, store intermediate results, or maintain logs related to their tasks.
 
@@ -10,12 +10,12 @@ This tool is designed to be used by agents like the `BDIAgent` or `StrategicEvol
 
 ### Core Features
 
-1.  **Initialization (`__init__`):**
+  **Initialization (`__init__`):**
     *   Accepts an optional `notes_dir` (absolute `Path`) argument. If not provided, it defaults to a path constructed from `PROJECT_ROOT / config.get("tools.note_taking.default_notes_dir_relative_to_project", "data/agent_notes/general_notes")`.
     *   Ensures the notes directory exists upon initialization.
     *   Can conceptually accept a `config` instance and `bdi_agent_ref` if it were to inherit from a common `BaseTool` class (as per the `BaseTool` stub provided earlier).
 
-2.  **Main Execution Method (`async execute`):**
+  **Main Execution Method (`async execute`):**
     *   This is the primary interface for the tool. It takes:
         -   `action`: A string specifying the operation: `"add"`, `"update"`, `"read"`, `"delete"`, `"list"`.
         -   `topic`: A string representing the subject or identifier of the note. This is used to generate a sanitized filename.
@@ -23,14 +23,14 @@ This tool is designed to be used by agents like the `BDIAgent` or `StrategicEvol
         -   `target_filename`: An optional string. If provided, this is used as the filename (potentially including relative subdirectories within the main `notes_dir_abs`). This allows for more structured note organization if needed. If `None`, the filename is derived from `topic`.
     *   File operations (`write_text`, `read_text`, `unlink`) are executed asynchronously using `loop.run_in_executor(None, ...)` to prevent blocking the agent's event loop.
 
-3.  **Filename Sanitization (`_sanitize_filename`):**
+  **Filename Sanitization (`_sanitize_filename`):**
     *   Converts a `topic` string into a safe filename by replacing invalid characters with underscores, reducing multiple underscores, stripping leading/trailing problematic characters, and limiting length.
     *   Provides a fallback filename (UUID-based) if sanitization results in an empty string.
 
-4.  **Path Construction (`_get_note_path`):**
+  **Path Construction (`_get_note_path`):**
     *   Uses the sanitized topic to construct the full `Path` to the note file within `self.notes_dir_abs`.
 
-5.  **Action Handlers (Private Methods):**
+  **Action Handlers (Private Methods):**
     *   The `execute` method dispatches to private helper methods for each action (though in this refactored version, the logic is directly within `execute` after path resolution).
     *   **`add`**: Creates a new note file. Fails if a file with the same resolved path already exists (to prevent accidental overwrite; `update` should be used). Requires `content`.
     *   **`update`**: Overwrites an existing note file with new `content`. Fails if the file does not exist. Requires `content`.
