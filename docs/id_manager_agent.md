@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The `IDManagerAgent` is a specialized component within the MindX system (Augmentic Project). Its core function is to generate and manage Ethereum-compatible cryptographic key pairs (consisting of a public address and a private key) for other agents, tools, or any entity within MindX requiring a unique and verifiable digital identity. This capability is foundational for scenarios involving secure inter-agent communication, data signing, or potential interactions with blockchain-based systems.
+The `IDManagerAgent` is a specialized component within the mindX Augmentic Intelligence. `IDManagerAgent` core function is to generate and manage Ethereum-compatible cryptographic key pairs (consisting of a public address and a private key) for other agents, tools, or any entity within mindX requiring a unique and verifiable digital identity. This capability is foundational for scenarios involving secure inter-agent communication, data signing, or potential interactions with blockchain-based systems.
 
 This version emphasizes secure local storage of private keys within a dedicated `.env` file, namespaced per `IDManagerAgent` instance, and includes more robust key naming and retrieval. The conceptual link to `EmbalmerAgent/Tomb` for file encryption remains an external operational concern beyond this agent's direct implementation, though the agent attempts to set restrictive file permissions.
 
@@ -70,7 +70,7 @@ This version emphasizes secure local storage of private keys within a dedicated 
 
 The `IDManagerAgent` is intended to be used by high-level orchestrators within MindX, such as the `MastermindAgent`, when new agents, tools, or components require a unique, cryptographically verifiable identity.
 
-1.  **Getting an Instance (Asynchronous Factory Recommended):**
+  **Getting an Instance (Asynchronous Factory Recommended):**
     ```python
     # from mindx.core.id_manager_agent import IDManagerAgent
     # import asyncio
@@ -81,7 +81,7 @@ The `IDManagerAgent` is intended to be used by high-level orchestrators within M
     #     return id_manager
     ```
 
-2.  **Creating a New Wallet (Identity):**
+  **Creating a New Wallet (Identity):**
     ```python
     # async def provision_new_agent_identity(id_manager: IDManagerAgent, new_agent_name: str):
     #     try:
@@ -96,7 +96,7 @@ The `IDManagerAgent` is intended to be used by high-level orchestrators within M
     #         return None
     ```
 
-3.  **Retrieving a Private Key (by an entity that knows its public address):**
+  **Retrieving a Private Key (by an entity that knows its public address):**
     ```python
     # async def agent_uses_its_key(id_manager: IDManagerAgent, my_public_address: str, my_entity_id: str):
     #     my_private_key = id_manager.get_private_key(my_public_address, entity_id_hint=my_entity_id)
@@ -107,11 +107,11 @@ The `IDManagerAgent` is intended to be used by high-level orchestrators within M
     #         print(f"Agent {my_entity_id}: Could not retrieve my private key!")
     ```
 
-4.  **Listing Identities:**
+  **Listing Identities:**
     ```python
     # identities = id_manager.list_managed_identities()
     # for identity_info in identities:
     #     print(f"- Entity Hint: {identity_info['entity_id_part']}, PubAddr: {identity_info.get('public_address', identity_info.get('public_address_suffix'))}")
     ```
 
-The `IDManagerAgent` provides a foundational service for identity management in MindX, enabling more advanced scenarios where components need to prove their identity or securely sign data. Its integration with the `MastermindAgent` allows for strategic provisioning of identities as the MindX system evolves or spawns new entities.
+The `IDManagerAgent` provides a foundational service for identity management in mindX, enabling more advanced scenarios where components need to prove their identity or securely sign data. Its integration with the `MastermindAgent` allows for strategic provisioning of identities as the MindX system evolves or spawns new entities.
