@@ -113,5 +113,5 @@ The `IDManagerAgent` is intended to be used by high-level orchestrators within M
     # for identity_info in identities:
     #     print(f"- Entity Hint: {identity_info['entity_id_part']}, PubAddr: {identity_info.get('public_address', identity_info.get('public_address_suffix'))}")
     ```
-<br />
+<br /><br />
 The `IDManagerAgent` provides a foundational service for identity management in mindX, enabling more advanced scenarios where components need to prove their identity or securely sign data. Its integration with the `MastermindAgent` allows for strategic provisioning of identities as the MindX system evolves or spawns new entities.
