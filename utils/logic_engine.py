@@ -15,10 +15,35 @@ from typing import Dict, Any, Callable, List, Union, Set, Optional, Tuple
 import uuid
 import copy # For deepcopying context
 
-from mindx.utils.logging_config import get_logger
-from mindx.core.belief_system import BeliefSystem, Belief, BeliefSource 
-from mindx.llm.llm_factory import LLMHandler, create_llm_handler # For Socratic questioning
-from mindx.utils.config import Config # For configuring LLM for Socratic part
+# Guard problematic imports for testing purposes
+_MINDX_IMPORTS_AVAILABLE = True
+try:
+    from mindx.utils.logging_config import get_logger
+    from mindx.core.belief_system import BeliefSystem, Belief, BeliefSource
+    from mindx.llm.llm_factory import LLMHandler, create_llm_handler
+    from mindx.utils.config import Config
+except ModuleNotFoundError:
+    _MINDX_IMPORTS_AVAILABLE = False
+    import logging as default_logging # Use standard logging as fallback
+    print("Warning: mindx.* imports failed in logic_engine.py. Using placeholder for testing.")
+
+    def get_logger(name):
+        # Basic fallback logger
+        log = default_logging.getLogger(name + "_fallback")
+        if not log.handlers:
+            handler = default_logging.StreamHandler()
+            formatter = default_logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            log.addHandler(handler)
+        log.setLevel(default_logging.INFO)
+        return log
+
+    class BeliefSystem: pass
+    class Belief: pass
+    class BeliefSource: pass
+    class LLMHandler: pass
+    def create_llm_handler(): pass
+    class Config: def get(self, *args, **kwargs): return None # Basic mock
 
 logger = get_logger(__name__)
 

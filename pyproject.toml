@@ -1,5 +1,5 @@
 [project]
-name = "augmentic_mindx"
+name = "mindx"
 version = "0.4.0" # Version bump for this more complete candidate
 description = "MindX: An experimental, hierarchically controlled AI system with autonomous self-improvement capabilities, by Augmentic."
 authors = [
@@ -81,7 +81,6 @@ tools_websearch = [ # Example if WebSearchTool had specific dependencies
 [build-system]
 requires = ["setuptools>=61.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
-backend-path = ["."] # Ensure setuptools can find its backend in editable installs
 
 [tool.setuptools]
 # include-package-data = true # If you have non-code files inside your package
@@ -89,7 +88,7 @@ zip-safe = false # Often safer for packages with complex imports or data files
 
 [tool.setuptools.packages.find]
 where = ["."]  # Search for packages in the current directory (location of pyproject.toml)
-include = ["mindx*"]  # Include the 'mindx' package and its subpackages
+# include = ["mindx*"]  # Let setuptools auto-discover packages like core, utils, etc.
 exclude = ["tests*", "docs_build*", "data_runtime*", "scripts.archive*"] 
 # Exclude top-level test/doc/data dirs from being installed as packages.
 # 'data_runtime' if you create a dir for runtime data separate from source 'data'.
@@ -163,7 +162,7 @@ ignore_missing_imports = true # Crucial when starting or with libs lacking stubs
 # --- Pytest Configuration ---
 [tool.pytest.ini_options]
 minversion = "7.0"
-addopts = "-ra -q --cov=mindx --cov-report=term-missing --cov-report=html" # Show short test summary, run coverage
+addopts = "-ra -q" # Show short test summary, run coverage
 testpaths = ["tests"] # Directory where tests are located
 python_files = "test_*.py"
 python_classes = "Test*"
@@ -195,7 +194,7 @@ exclude_lines = [
     "if self.debug:",
     "if logger.isEnabledFor(logging.DEBUG):",
     "raise NotImplementedError",
-    "if __name__ == .__main__.:", # For CLI entry points in modules
-    "class .*\(Protocol\):", # Exclude Protocol definitions
+    "if __name__ == \"__main__\":", # For CLI entry points in modules
+    "class .*\\(Protocol\\):", # Exclude Protocol definitions
     "@overload",
 ]

@@ -1,0 +1,9 @@
+README.md
+pyproject.toml
+augmentic_mindx.egg-info/PKG-INFO
+augmentic_mindx.egg-info/SOURCES.txt
+augmentic_mindx.egg-info/dependency_links.txt
+augmentic_mindx.egg-info/not-zip-safe
+augmentic_mindx.egg-info/requires.txt
+augmentic_mindx.egg-info/top_level.txt
+tests/test_logic_engine.py
