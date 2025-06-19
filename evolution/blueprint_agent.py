@@ -221,6 +221,7 @@ class BlueprintAgent:
         # For this stub, we'll imagine this comes from beliefs
         # conceptual_todos = await self.belief_system.query_beliefs(partial_key="mindx.system.todo", min_confidence=0.7)
         # summary["known_todos_or_limitations"] = [b.value for b in conceptual_todos[:5]]
+        # Placeholder: Intended to be sourced dynamically (e.g., from BeliefSystem) in future versions.
         summary["conceptual_known_limitations"] = [
             "SIA evaluation relies heavily on LLM critique, needs more functional testing.",
             "System restart required for self-updates of Coordinator/SIA to take effect.",
