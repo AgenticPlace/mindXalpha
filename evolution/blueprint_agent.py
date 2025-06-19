@@ -11,6 +11,7 @@ import logging
 import asyncio
 import json
 import time
+import re
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple, Union
 
@@ -29,12 +30,75 @@ class BlueprintAgent:
     """
     Generates a strategic blueprint for the next iteration of MindX's development
     and self-improvement capabilities.
+
+    Configuration:
+        The BlueprintAgent uses the following configuration keys from the main application
+        configuration (`Config` object):
+
+        - `evolution.blueprint_agent.agent_id` (str):
+            The unique identifier for this agent.
+            Default: "blueprint_agent_mindx_v1"
+
+        - `evolution.blueprint_agent.llm.provider` (str):
+            The LLM provider to use for generating blueprints. If not specified,
+            it falls back to the value of `llm.default_provider`.
+
+        - `evolution.blueprint_agent.llm.model` (str):
+            The specific LLM model to use for blueprint generation. If not specified,
+            it falls back to the default reasoning model for the selected provider,
+            which is determined by `llm.{provider}.default_model_for_reasoning`
+            (e.g., `llm.openai.default_model_for_reasoning`).
+
+        - `evolution.blueprint_agent.llm.max_tokens` (int):
+            The maximum number of tokens to generate for the blueprint response.
+            Default: 2500
+
+        - `evolution.blueprint_agent.llm.temperature` (float):
+            The temperature setting for the LLM during blueprint generation,
+            controlling the randomness of the output.
+            Default: 0.3
+
+        The following conceptual configuration keys are used for context gathering within
+        the `_gather_mindx_system_state_summary` method or in example runs, reflecting
+        the versions of different parts of the MindX system:
+
+        - `system.agents.coordinator.version` (str):
+            Conceptual version of the CoordinatorAgent.
+            Default used in summary: "v_prod_cand_final"
+
+        - `system.agents.sia.version` (str):
+            Conceptual version of the SelfImprovementAgent.
+            Default used in summary: "v3.5_cli_focused"
+
+        - `system.agents.sea.version` (str):
+            Conceptual version of the StrategicEvolutionAgent.
+            Default used in summary: "v1.0_bdi_driven"
+
+        - `system.version` (str):
+            Overall MindX system version.
+            Default used in example: "0.4.0"
+
+        Note on LLM Fallbacks:
+        The agent relies on global LLM configuration for fallbacks:
+        - `llm.default_provider`: Used if `evolution.blueprint_agent.llm.provider` is not set.
+        - `llm.{provider}.default_model_for_reasoning`: Used if `evolution.blueprint_agent.llm.model`
+          is not set, where `{provider}` is the determined LLM provider.
     """
     _instance = None
     _lock = asyncio.Lock()
 
-    def __new__(cls, *args, **kwargs): # pragma: no cover
+    def __new__(cls, *args, **kwargs):
+        """
+        Ensures that only one instance of BlueprintAgent is created (Singleton pattern).
+
+        Uses a class-level `_instance` variable to store the single instance
+        and `_lock` for thread/async safety during the first instantiation,
+        although the primary async safety for instantiation is typically handled
+        in the factory method `get_blueprint_agent_async`.
+        """
         if not cls._instance:
+            # The lock is more critical in the factory method that might be called concurrently.
+            # Here, it's a secondary check.
             cls._instance = super(BlueprintAgent, cls).__new__(cls)
         return cls._instance
 
@@ -42,8 +106,31 @@ class BlueprintAgent:
                  belief_system: BeliefSystem,
                  coordinator_ref: CoordinatorAgent, # Reference to the live Coordinator
                  config_override: Optional[Config] = None,
-                 test_mode: bool = False): # pragma: no cover
-        
+                 test_mode: bool = False):
+        """
+        Initializes the BlueprintAgent's state.
+
+        This method sets up the agent's configuration, references to essential
+        components like the BeliefSystem and CoordinatorAgent, and initializes
+        the LLM handler for blueprint generation.
+
+        The `_initialized` flag and `test_mode` parameter work together to
+        support the singleton pattern:
+        - If the instance is already initialized (`hasattr(self, '_initialized') and self._initialized`)
+          and `test_mode` is `False`, the initialization is skipped to prevent
+          re-initializing a live singleton.
+        - If `test_mode` is `True`, re-initialization can occur, which is useful
+          for isolated testing.
+
+        Args:
+            belief_system (BeliefSystem): Reference to the MindX BeliefSystem.
+            coordinator_ref (CoordinatorAgent): Reference to the live CoordinatorAgent
+                for accessing system state (backlog, history, etc.).
+            config_override (Optional[Config]): An optional Config object to
+                override default configurations. Useful for testing.
+            test_mode (bool): If True, allows re-initialization even if the
+                singleton instance was previously initialized. Defaults to False.
+        """
         if hasattr(self, '_initialized') and self._initialized and not test_mode:
             return
 
@@ -60,7 +147,7 @@ class BlueprintAgent:
         logger.info(f"BlueprintAgent '{self.agent_id}' initialized. LLM: {self.llm_handler.provider_name}/{self.llm_handler.model_name or 'default'}")
         self._initialized = True
 
-    async def _gather_mindx_system_state_summary(self) -> Dict[str, Any]: # pragma: no cover
+    async def _gather_mindx_system_state_summary(self) -> Dict[str, Any]:
         """Gathers a summary of the current MindX system state for analysis."""
         summary = {}
 
@@ -152,7 +239,7 @@ class BlueprintAgent:
             "Consider the current system state and the overall goal of creating more autonomous, robust, and capable self-improving AI.",
             f"Current MindX System State Summary:\n{json.dumps(system_state_summary, indent=2)}",
         ]
-        if high_level_directive: # pragma: no cover
+        if high_level_directive:
             prompt_parts.append(f"\nA specific high-level directive for this blueprint is: '{high_level_directive}'")
 
         prompt_parts.append(
@@ -178,20 +265,32 @@ class BlueprintAgent:
             temperature = self.config.get("evolution.blueprint_agent.llm.temperature", 0.3)
             response_str = await self.llm_handler.generate_text(prompt, max_tokens=max_tokens, temperature=temperature, json_mode=True)
 
-            if response_str and not response_str.startswith("Error:"):
-                try: blueprint_json = json.loads(response_str)
-                except json.JSONDecodeError: # pragma: no cover
-                    match = re.search(r"\{[\s\S]*\}", response_str)
-                    if match: blueprint_json = json.loads(match.group(0))
-                    else: logger.error(f"{self.agent_id}: LLM blueprint response not valid JSON. Raw: {response_str[:300]}"); raise ValueError("Blueprint LLM response not JSON")
-            else: # pragma: no cover
-                logger.error(f"{self.agent_id}: LLM blueprint generation failed or returned empty: {response_str}")
-                raise ValueError(f"Blueprint LLM generation failed: {response_str}")
+            if not response_str or response_str.startswith("Error:"):
+                logger.error(f"{self.agent_id}: LLM blueprint generation failed or returned empty/error: {response_str}")
+                raise ValueError(f"LLM generation failed or returned error: {response_str}")
+
+            try:
+                blueprint_json = json.loads(response_str)
+            except json.JSONDecodeError as jde:
+                logger.error(f"{self.agent_id}: LLM blueprint response not valid JSON. Error: {jde}. Raw response (first 300 chars): {response_str[:300]}", exc_info=True)
+                # Attempt to extract JSON from a potentially larger string if it's embedded
+                match = re.search(r"\{[\s\S]*\}", response_str)
+                if match:
+                    try:
+                        blueprint_json = json.loads(match.group(0))
+                        logger.info(f"{self.agent_id}: Successfully extracted and parsed JSON from malformed LLM response.")
+                    except json.JSONDecodeError as inner_jde:
+                        extracted_json_str = match.group(0)
+                        logger.error(f"{self.agent_id}: Failed to parse extracted JSON. Error: {inner_jde}. Extracted part (first 300 chars): {extracted_json_str[:300]}", exc_info=True)
+                        raise ValueError(f"Blueprint LLM response contained an extractable JSON-like structure, but it was still invalid. Details: {inner_jde.msg}, position: {inner_jde.pos}, problematic part: '{extracted_json_str[max(0, inner_jde.pos-10):inner_jde.pos+10]}'") from inner_jde
+                else:
+                    # Original JDE details are more relevant here as no sub-structure was found
+                    raise ValueError(f"Blueprint LLM response was not valid JSON and no JSON object found within. Details: {jde.msg}, position: {jde.pos}, problematic part: '{response_str[max(0, jde.pos-10):jde.pos+10]}'") from jde
 
             # Validate blueprint structure (basic check)
-            if not blueprint_json or not all(k in blueprint_json for k in ["blueprint_title", "focus_areas"]): # pragma: no cover
+            if not blueprint_json or not all(k in blueprint_json for k in ["blueprint_title", "focus_areas"]):
                 logger.error(f"{self.agent_id}: Generated blueprint missing essential keys. Blueprint: {str(blueprint_json)[:500]}")
-                raise ValueError("Generated blueprint missing essential keys.")
+                raise ValueError(f"Generated blueprint missing essential keys (e.g., 'blueprint_title', 'focus_areas'). Received: {list(blueprint_json.keys()) if blueprint_json else 'None'}")
             
             logger.info(f"{self.agent_id}: Successfully generated evolution blueprint titled '{blueprint_json.get('blueprint_title', 'Untitled Blueprint')}'.")
             # Persist blueprint to BeliefSystem
@@ -202,16 +301,26 @@ class BlueprintAgent:
             )
             return blueprint_json
 
-        except Exception as e: # pragma: no cover
-            logger.error(f"{self.agent_id}: Exception during blueprint generation: {e}", exc_info=True)
-            return {"error": f"Blueprint generation exception: {type(e).__name__}: {e}", "blueprint_title": "Error Blueprint"}
+        except json.JSONDecodeError as jde: # Specific handler for JSON parsing errors
+            # This should ideally be caught by the inner try-except, but as a fallback.
+            err_msg = f"Failed to parse LLM response as JSON. Details: {jde.msg}. Position: {jde.pos}. Near text: '{jde.doc[max(0, jde.pos-20):jde.pos+20]}'"
+            logger.error(f"{self.agent_id}: {err_msg}", exc_info=True)
+            return {"error": err_msg, "blueprint_title": "Error Blueprint - JSON Parsing Failed"}
 
-    async def shutdown(self): # pragma: no cover
+        except ValueError as ve: # Specific handler for known value errors (LLM failure, validation)
+            logger.error(f"{self.agent_id}: Value error during blueprint generation: {ve}", exc_info=True)
+            return {"error": f"Blueprint generation value error: {ve}", "blueprint_title": "Error Blueprint - Validation/Input Error"}
+
+        except Exception as e: # Generic handler for any other unexpected errors
+            logger.error(f"{self.agent_id}: Unexpected exception during blueprint generation: {e}", exc_info=True)
+            return {"error": f"Unexpected blueprint generation exception: {type(e).__name__}: {e}", "blueprint_title": "Error Blueprint - Unexpected"}
+
+    async def shutdown(self):
         logger.info(f"BlueprintAgent '{self.agent_id}' shutting down.")
         # No specific async tasks to cancel in this agent for now.
 
     @classmethod
-    async def reset_instance_async(cls): # For testing # pragma: no cover
+    async def reset_instance_async(cls): # For testing
         async with cls._lock:
             if cls._instance:
                 if hasattr(cls._instance, "shutdown") and asyncio.iscoroutinefunction(cls._instance.shutdown):
@@ -226,7 +335,7 @@ async def get_blueprint_agent_async(
     coordinator_ref: CoordinatorAgent, # Needs live coordinator
     config_override: Optional[Config] = None, 
     test_mode: bool = False
-) -> BlueprintAgent: # pragma: no cover
+) -> BlueprintAgent:
     """Asynchronously gets or creates the BlueprintAgent singleton instance."""
     # This agent is more stateful with coordinator_ref, so test_mode should always create new if instance exists.
     if not BlueprintAgent._instance or test_mode:
