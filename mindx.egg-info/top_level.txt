@@ -1,0 +1,11 @@
+core
+data
+docs
+evolution
+learning
+llm
+monitoring
+orchestration
+scripts
+tools
+utils
