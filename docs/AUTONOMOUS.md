@@ -57,8 +57,10 @@ In basegen_config.json:
   // ...
 }
 
-# start mastermind mindX Augmentic Intelligence in autonomous mode
 ```
+# start mastermind mindX Augmentic Intelligence in autonomous mode
+
+
 ```bash
 python3 -m venv mindX
 ```
