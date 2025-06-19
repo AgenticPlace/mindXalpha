@@ -12,6 +12,7 @@ import asyncio
 import json
 import time
 import re
+import sys
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple, Union
 
@@ -356,8 +357,12 @@ async def example_run_blueprint_agent(): # pragma: no cover
     # This requires Coordinator to be up and running first
     from mindx.orchestration.coordinator_agent import get_coordinator_agent_mindx_async
 
-    config = Config(test_mode=True); Config.reset_instance(); config=Config(test_mode=True) # Fresh config
-    shared_bs = BeliefSystem(test_mode=True); BeliefSystem.reset_instance(); shared_bs=BeliefSystem(test_mode=True)
+    # Ensure a fresh state for these singletons for the example run
+    Config.reset_instance()
+    config = Config(test_mode=True)
+
+    BeliefSystem.reset_instance()
+    shared_bs = BeliefSystem(test_mode=True)
     
     logger.info("BlueprintAgent Example: Initializing Coordinator...")
     # Need to ensure coordinator factory can also run in test_mode for its singletons
@@ -404,17 +409,16 @@ async def example_run_blueprint_agent(): # pragma: no cover
 
     await bp_agent.shutdown()
     await coordinator.shutdown()
-    # Also shutdown monitors explicitly if not handled by coordinator's shutdown in test mode
-    res_mon = await get_resource_monitor_async(test_mode=True); perf_mon = await get_performance_monitor_async(test_mode=True)
-    if res_mon.monitoring: res_mon.stop_monitoring()
-    await perf_mon.shutdown()
+    # CoordinatorAgent's shutdown method is expected to handle the shutdown of
+    # its owned monitors (resource_monitor, performance_monitor) when appropriate,
+    # especially if they were initialized by or through the coordinator.
 
 
 if __name__ == "__main__": # pragma: no cover
     # Ensure .env is loaded
     project_r_main = Path(__file__).resolve().parent.parent.parent
     env_p_main = project_r_main / ".env"
-    if env_p_main.exists(): from dotenv import load_dotenv; load_dotenv(dotenv_path=env_p_main, override=True)
+    if env_p_main.exists(): from dotenv import load_dotenv; load_dotenv(dotenv_path=env_p_main, override=False) # Changed override to False
     else: print(f"BlueprintAgent Main: .env not found at {env_p_main}. Using defaults/env vars.", file=sys.stderr)
     
     try:
