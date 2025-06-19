@@ -61,23 +61,39 @@ class BlueprintAgent:
 
         The following conceptual configuration keys are used for context gathering within
         the `_gather_mindx_system_state_summary` method or in example runs, reflecting
-        the versions of different parts of the MindX system:
+        the versions of different parts of the MindX system. These versions are
+        "reported" or "believed" versions, not necessarily derived programmatically
+        by `BlueprintAgent` from code/metadata, but used to inform the LLM.
 
         - `system.agents.coordinator.version` (str):
-            Conceptual version of the CoordinatorAgent.
-            Default used in summary: "v_prod_cand_final"
+            Specifies the conceptual or reported version of the CoordinatorAgent.
+            This version string is included in the system state summary provided
+            to the LLM, offering context about the perceived maturity or iteration
+            of this core component. It is not programmatically derived from the
+            CoordinatorAgent's code by `BlueprintAgent`.
+            Default: If not set in the configuration, `BlueprintAgent` uses the
+            hardcoded fallback string "v_prod_cand_final" when constructing
+            the summary in `_gather_mindx_system_state_summary`.
 
         - `system.agents.sia.version` (str):
-            Conceptual version of the SelfImprovementAgent.
-            Default used in summary: "v3.5_cli_focused"
+            Specifies the conceptual or reported version of the SelfImprovementAgent.
+            This information is part of the system context for the LLM.
+            Default: If not set in the configuration, `BlueprintAgent` uses the
+            hardcoded fallback "v3.5_cli_focused" in `_gather_mindx_system_state_summary`.
 
         - `system.agents.sea.version` (str):
-            Conceptual version of the StrategicEvolutionAgent.
-            Default used in summary: "v1.0_bdi_driven"
+            Specifies the conceptual or reported version of the StrategicEvolutionAgent.
+            This information is part of the system context for the LLM.
+            Default: If not set in the configuration, `BlueprintAgent` uses the
+            hardcoded fallback "v1.0_bdi_driven" in `_gather_mindx_system_state_summary`.
 
         - `system.version` (str):
-            Overall MindX system version.
-            Default used in example: "0.4.0"
+            Specifies the overall conceptual or reported version of the MindX system.
+            This is used, for example, as the `current_mindx_version` parameter
+            in `example_run_blueprint_agent` and helps the LLM understand the
+            current baseline of the entire system.
+            Default: If not set in the configuration, the `example_run_blueprint_agent`
+            function uses the hardcoded fallback "0.4.0".
 
         Note on LLM Fallbacks:
         The agent relies on global LLM configuration for fallbacks:
