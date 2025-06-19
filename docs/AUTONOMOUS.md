@@ -58,7 +58,7 @@ In basegen_config.json:
 }
 
 ```
-# start mastermind mindX Augmentic Intelligence in autonomous mode
+# start mindX autonomous mode
 
 
 ```bash
@@ -73,3 +73,8 @@ pip install -r requirements.txt
 ```bash
 python3 scripts/mindX.py
 ```
+............ you should see
+```txt
+mindX (Mastermind) > []
+```
+enter help for help exit to exit
