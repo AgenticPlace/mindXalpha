@@ -100,6 +100,45 @@ class BlueprintAgent:
         - `llm.default_provider`: Used if `evolution.blueprint_agent.llm.provider` is not set.
         - `llm.{provider}.default_model_for_reasoning`: Used if `evolution.blueprint_agent.llm.model`
           is not set, where `{provider}` is the determined LLM provider.
+
+    Data Dependencies on CoordinatorAgent:
+        The `BlueprintAgent` relies on `coordinator_ref` (an instance of
+        `CoordinatorAgent`) to provide several pieces of data for constructing
+        the system state summary. The key data structures and fields utilized are:
+
+        - `coordinator_ref.system_capabilities_cache` (Dict[str, Dict[str, Any]]):
+            Expected to be a dictionary where each value is another dictionary
+            containing at least a `'module': str` key-value pair, representing
+            the module path of a scanned capability. Used to summarize available
+            system capabilities.
+
+        - `coordinator_ref.improvement_backlog` (List[Dict[str, Any]]):
+            A list of dictionaries, where each dictionary represents an item in
+            the improvement backlog. `BlueprintAgent` specifically looks for:
+            - `'status': str`: e.g., "PENDING", "PENDING_APPROVAL".
+            - `'priority': int`: Used for sorting; defaults to 0 if missing.
+
+        - `coordinator_ref.improvement_campaign_history` (List[Dict[str, Any]]):
+            A list of dictionaries detailing past improvement campaigns. For the
+            last 3 entries, `BlueprintAgent` extracts:
+            - `'target_component_id': Any`
+            - `'status_from_sia_json': Any`
+            - `'final_sia_op_status': Any`
+
+        - Data from `coordinator_ref.resource_monitor.get_resource_usage()` (Dict[str, Any]):
+            If `coordinator_ref.resource_monitor` exists, this method is called.
+            The returned dictionary is expected to contain:
+            - `'cpu_percent': float`: Defaults to 0.0 if key is missing.
+            - `'memory_percent': float`: Defaults to 0.0 if key is missing.
+
+        - Data from `coordinator_ref.performance_monitor.get_all_metrics()` (Dict[str, Dict[str, Any]]):
+            If `coordinator_ref.performance_monitor` exists, this method is called.
+            This is expected to be a dictionary of dictionaries. Each inner metrics
+            dictionary is expected to have:
+            - `'requests': int`: Defaults to 0 if key is missing.
+            - `'success_rate': float`: Defaults to 1.0 if key is missing.
+            This data is used to summarize LLM performance and identify potential
+            low success rate models.
     """
     _instance = None
     _lock = asyncio.Lock()
