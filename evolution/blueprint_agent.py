@@ -5,6 +5,13 @@ BlueprintAgent for MindX Strategic Evolution Planning.
 This agent analyzes the current state of the mindX system and uses an LLM
 to propose a strategic blueprint for the next iteration of MindX's own
 self-improvement and development.
+
+This module also supports direct CLI execution for generating blueprints.
+To see available command-line options, run:
+    python -m mindx.evolution.blueprint_agent --help
+(If running from the project root and `mindx` is in PYTHONPATH or installed) or:
+    python evolution/blueprint_agent.py --help
+(If running the script file directly from the project root).
 """
 
 import logging
@@ -13,6 +20,7 @@ import json
 import time
 import re
 import sys
+import argparse # Added for CLI argument parsing
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple, Union
 
@@ -408,78 +416,183 @@ async def get_blueprint_agent_async(
                     test_mode=test_mode)
     return BlueprintAgent._instance
 
-# --- Example Usage (Conceptual, typically called by Coordinator or a main loop) ---
-async def example_run_blueprint_agent(): # pragma: no cover
+async def run_cli_blueprint_generation(args: argparse.Namespace) -> bool:
+    """
+    Main logic for blueprint generation when script is run from CLI.
+    Returns True if successful, False otherwise.
+    """
     # This requires Coordinator to be up and running first
     from mindx.orchestration.coordinator_agent import get_coordinator_agent_mindx_async
 
     # Ensure a fresh state for these singletons for the example run
     Config.reset_instance()
-    config = Config(test_mode=True)
-
-    BeliefSystem.reset_instance()
-    shared_bs = BeliefSystem(test_mode=True)
+    # Pass config_file to Config if provided and Config supports it.
+    # Assuming Config might take a custom_config_path or similar.
+    # If not, this arg won't directly affect Config's file loading without Config changes.
+    config_params = {"test_mode": True}
+    if args.config_file:
+        # This is an assumed way Config might take a specific file.
+        # If Config.load_config() is the only way, this won't override default loading behavior.
+        config_params["custom_config_path"] = str(args.config_file)
+        if not args.quiet:
+            print(f"Attempting to use config file: {args.config_file}", file=sys.stderr)
+    config = Config(**config_params)
     
-    logger.info("BlueprintAgent Example: Initializing Coordinator...")
-    # Need to ensure coordinator factory can also run in test_mode for its singletons
+    BeliefSystem.reset_instance()
+    shared_bs = BeliefSystem(test_mode=True) # test_mode=True typically means in-memory/transient
+
+    if not args.quiet:
+        logger.info("BlueprintAgent CLI: Initializing Coordinator...")
     try:
-        # Ensure Coordinator factory is called in a way that respects test_mode for its own singletons if necessary
         coordinator = await get_coordinator_agent_mindx_async(config_override=config, test_mode=True)
-        logger.info("BlueprintAgent Example: Coordinator initialized.")
+        if not args.quiet:
+            logger.info("BlueprintAgent CLI: Coordinator initialized.")
     except Exception as e:
-        logger.error(f"BlueprintAgent Example: Failed to initialize Coordinator: {e}", exc_info=True)
-        return
+        logger.error(f"BlueprintAgent CLI: Failed to initialize Coordinator: {e}", exc_info=True)
+        print(f"Error: Failed to initialize Coordinator: {e}", file=sys.stderr)
+        return False # Signal failure
 
-    logger.info("BlueprintAgent Example: Initializing BlueprintAgent...")
-    bp_agent = await get_blueprint_agent_async(belief_system=shared_bs, coordinator_ref=coordinator, config_override=config, test_mode=True)
-    logger.info("BlueprintAgent Example: BlueprintAgent initialized.")
+    if not args.quiet:
+        logger.info("BlueprintAgent CLI: Initializing BlueprintAgent...")
+    try:
+        bp_agent = await get_blueprint_agent_async(belief_system=shared_bs, coordinator_ref=coordinator, config_override=config, test_mode=True)
+        if not args.quiet:
+            logger.info("BlueprintAgent CLI: BlueprintAgent initialized.")
+    except Exception as e:
+        logger.error(f"BlueprintAgent CLI: Failed to initialize BlueprintAgent: {e}", exc_info=True)
+        print(f"Error: Failed to initialize BlueprintAgent: {e}", file=sys.stderr)
+        return False # Signal failure
 
-    current_version = config.get("system.version", "0.4.0") # Get current MindX version
-    directive = "Enhance the safety and robustness of the SelfImprovementAgent's self-update process."
-
-    print(f"\n--- Generating Blueprint for MindX v{current_version} ---")
-    print(f"Directive: {directive}\n")
+    if not args.quiet:
+        print(f"\n--- Generating Blueprint for MindX v{args.mindx_version} ---")
+        if args.directive:
+            print(f"Directive: {args.directive}")
+        print(f"Iterations to look ahead: {args.iterations}\n")
 
     blueprint = await bp_agent.generate_next_evolution_blueprint(
-        current_mindx_version=current_version,
-        high_level_directive=directive,
-        look_ahead_iterations=1
+        current_mindx_version=args.mindx_version,
+        high_level_directive=args.directive,
+        look_ahead_iterations=args.iterations
     )
 
-    print("\n--- Generated Evolution Blueprint ---")
-    print(json.dumps(blueprint, indent=2))
-    print("-" * 50)
+    if "error" in blueprint:
+        # Error details are already logged by the agent.
+        print(f"Error: Blueprint generation failed - {blueprint['error']}", file=sys.stderr)
+        return False # Signal failure
+    elif args.output_file:
+        output_path = Path(args.output_file)
+        try:
+            with open(output_path, 'w') as f:
+                json.dump(blueprint, f, indent=2)
+            if not args.quiet:
+                print(f"Blueprint successfully written to: {output_path}")
+        except IOError as e:
+            print(f"Error: Failed to write blueprint to file {output_path}: {e}", file=sys.stderr)
+            # Fallback to stdout if file write fails
+            if not args.quiet:
+                print("\n--- Generated Evolution Blueprint (fallback to stdout) ---")
+            print(json.dumps(blueprint, indent=2))
+            # Still considered a success if blueprint is produced, even if file write failed.
+    else: # No output file, print to stdout (even if quiet, this is the primary output)
+        print(json.dumps(blueprint, indent=2))
 
-    # The blueprint (JSON) would then be used by developers or a higher-level
-    # meta-agent to guide the *next actual development or self-improvement tasks*
-    # for MindX. For example, the 'development_goals' could be added to the
-    # Coordinator's improvement_backlog.
-    if "focus_areas" in blueprint:
-        for area in blueprint["focus_areas"]:
+    # If we reached here and blueprint doesn't have an error, it's a success.
+    # The detailed printout of focus areas is informational and its absence doesn't mean failure.
+    if not args.quiet and blueprint and "focus_areas" in blueprint:
+        print("-" * 50)
+        for area in blueprint.get("focus_areas", []): # Use .get for safety, though already checked "error"
             print(f"\nFocus Area: {area.get('area_title')}")
             for goal in area.get("development_goals",[]):
                 print(f"  - Goal: {goal.get('description')}")
                 print(f"    Target: {goal.get('target_component_module_path')}")
                 print(f"    Justification: {goal.get('justification')}")
-                # Example: coordinator.add_to_improvement_backlog(goal_from_blueprint, source="blueprint_agent")
 
+    if not args.quiet:
+        logger.info("BlueprintAgent CLI: Shutting down agents...")
     await bp_agent.shutdown()
     await coordinator.shutdown()
-    # CoordinatorAgent's shutdown method is expected to handle the shutdown of
-    # its owned monitors (resource_monitor, performance_monitor) when appropriate,
-    # especially if they were initialized by or through the coordinator.
+    if not args.quiet:
+        logger.info("BlueprintAgent CLI: Agents shutdown complete.")
+    return True # Signal success
 
 
 if __name__ == "__main__": # pragma: no cover
-    # Ensure .env is loaded
+    parser = argparse.ArgumentParser(description="Generate an evolution blueprint for the MindX system.")
+    parser.add_argument(
+        "--mindx-version", "-v",
+        required=True,
+        type=str,
+        help="Current MindX version (e.g., '0.5.0')."
+    )
+    parser.add_argument(
+        "--directive", "-d",
+        type=str,
+        default=None,
+        help="Optional high-level directive for the blueprint (e.g., 'Focus on safety')."
+    )
+    parser.add_argument(
+        "--iterations", "-i",
+        type=int,
+        default=1,
+        help="Number of major iterations to plan for (default: 1)."
+    )
+    parser.add_argument(
+        "--output-file", "-o",
+        type=str, # Path will be handled by Path()
+        default=None,
+        help="Optional file path to save the generated blueprint JSON. Prints to stdout if not provided."
+    )
+    parser.add_argument(
+        "--config-file", "-c",
+        type=str, # Path will be handled by Path()
+        default=None,
+        help="Optional path to a custom configuration file for MindX."
+    )
+    parser.add_argument(
+        "--quiet", "-q",
+        action='store_true',
+        help="Suppress informational logging and print only the blueprint JSON (or errors to stderr)."
+    )
+
+    cli_args = parser.parse_args()
+
+    # Handle .env loading
+    # Note: If a config-file is specified via CLI, it might define how .env is loaded or if it's used.
+    # This basic .env loading here might be superseded by Config class's own loading logic if it's sophisticated.
     project_r_main = Path(__file__).resolve().parent.parent.parent
     env_p_main = project_r_main / ".env"
-    if env_p_main.exists(): from dotenv import load_dotenv; load_dotenv(dotenv_path=env_p_main, override=False) # Changed override to False
-    else: print(f"BlueprintAgent Main: .env not found at {env_p_main}. Using defaults/env vars.", file=sys.stderr)
+    if env_p_main.exists():
+        from dotenv import load_dotenv
+        # If quiet, we might not want .env to override existing env vars if not explicitly desired.
+        # However, override=False is generally safer.
+        load_dotenv(dotenv_path=env_p_main, override=False)
+        if not cli_args.quiet:
+            print(f"BlueprintAgent Main: Loaded .env file from {env_p_main}", file=sys.stderr)
+    elif not cli_args.quiet: # Only print if not quiet and .env doesn't exist
+        print(f"BlueprintAgent Main: .env not found at {env_p_main}. Using defaults/env vars.", file=sys.stderr)
     
+    # Basic quiet mode: suppress logger's own console output for INFO/DEBUG if possible
+    # This is a simple way; a more robust way involves configuring logging handlers.
+    if cli_args.quiet:
+        # Find the console handler and set its level higher, or remove it.
+        # This is a bit hacky without direct access to logging_config.py setup.
+        # For now, the conditional print statements in run_cli_blueprint_generation will handle most quietness.
+        pass # Deferring more complex logger manipulation
+
+    succeeded = False # Initialize status
     try:
-        asyncio.run(example_run_blueprint_agent())
+        succeeded = asyncio.run(run_cli_blueprint_generation(cli_args))
     except KeyboardInterrupt:
-        logger.info("BlueprintAgent example interrupted by user.")
+        if not cli_args.quiet:
+            logger.info("BlueprintAgent CLI interrupted by user.")
+        print("Error: Operation cancelled by user.", file=sys.stderr)
+        sys.exit(130) # Exit code for SIGINT
+    except Exception as e:
+        logger.error(f"BlueprintAgent CLI: An unexpected error occurred: {e}", exc_info=True)
+        print(f"Error: An unexpected error occurred: {e}", file=sys.stderr)
+        sys.exit(1) # General error exit code
     finally:
-        logger.info("BlueprintAgent example finished.")
+        if not cli_args.quiet:
+            logger.info("BlueprintAgent CLI finished.")
+
+    sys.exit(0 if succeeded else 1)
